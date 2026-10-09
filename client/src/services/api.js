@@ -1,12 +1,15 @@
-const API_BASE = '/api';
+const API_BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
 
 async function request(endpoint, options = {}) {
+  const token = localStorage.getItem('vionest_token');
   const defaultHeaders = {
     'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
   };
 
   const config = {
     ...options,
+    credentials: 'include',
     headers: {
       ...defaultHeaders,
       ...options.headers,
@@ -24,16 +27,23 @@ async function request(endpoint, options = {}) {
 }
 
 export const authApi = {
-  login: (username, password) =>
-    request('/auth/login', {
+  login: async (username, password) => {
+    const res = await request('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ username, password }),
-    }),
+    });
+    if (res?.token) {
+      localStorage.setItem('vionest_token', res.token);
+    }
+    return res;
+  },
 
-  logout: () =>
-    request('/auth/logout', {
+  logout: async () => {
+    localStorage.removeItem('vionest_token');
+    return request('/auth/logout', {
       method: 'POST',
-    }),
+    });
+  },
 
   getMe: () =>
     request('/auth/me', {

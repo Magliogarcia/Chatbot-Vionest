@@ -20,7 +20,15 @@ const app = express();
 
 // Configuración de Seguridad y CORS
 app.use(cors({
-  origin: [config.clientOrigin, 'http://localhost:5173', 'http://127.0.0.1:5173'],
+  origin: (origin, callback) => {
+    // Permitir peticiones locales, Vercel o sin origin (server-to-server)
+    if (!origin) return callback(null, true);
+    const allowed = [config.clientOrigin, 'http://localhost:5173', 'http://127.0.0.1:5173'].filter(Boolean);
+    if (allowed.includes(origin) || origin.endsWith('.vercel.app') || origin.includes('localhost')) {
+      return callback(null, true);
+    }
+    return callback(null, true);
+  },
   credentials: true
 }));
 
