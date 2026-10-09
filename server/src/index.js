@@ -67,9 +67,10 @@ async function startServer() {
     await connectToDatabase();
     await seedAdminUser();
 
-    // Enlazar a localhost para garantizar operación exclusivamente local
-    const server = app.listen(config.port, '127.0.0.1', () => {
-      console.log(`🚀 Servidor backend de Vionest ejecutándose en: http://127.0.0.1:${config.port}`);
+    // Enlazar a 0.0.0.0 para permitir el enrutamiento en la nube (Render) y local
+    const host = process.env.HOST || '0.0.0.0';
+    const server = app.listen(config.port, host, () => {
+      console.log(`🚀 Servidor backend de Vionest ejecutándose en: http://${host}:${config.port}`);
     });
 
     const shutdown = async () => {
