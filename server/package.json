@@ -1,0 +1,27 @@
+{
+  "name": "vionest-chatbot-server",
+  "version": "1.0.0",
+  "description": "Backend API para el Chatbot Interno de Vionest",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "inspect-db": "node src/scripts/inspect-db.js",
+    "seed-admin": "node src/scripts/seed-admin.js",
+    "test": "node --test tests/**/*.test.js"
+  },
+  "dependencies": {
+    "@google/genai": "^2.28.0",
+    "@google/generative-ai": "^0.24.1",
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^6.14.2",
+    "zod": "^3.24.2"
+  }
+}
