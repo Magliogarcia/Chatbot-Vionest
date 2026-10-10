@@ -9,6 +9,7 @@
     "dev": "node --watch src/index.js",
     "inspect-db": "node src/scripts/inspect-db.js",
     "seed-admin": "node src/scripts/seed-admin.js",
+    "migrate-db": "node src/scripts/migrate-to-atlas.js",
     "test": "node --test tests/**/*.test.js"
   },
   "dependencies": {
