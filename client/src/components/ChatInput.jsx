@@ -28,7 +28,7 @@ export function ChatInput({
   };
 
   return (
-    <div className="border-t border-surface-border bg-surface-dark/95 backdrop-blur-md p-4">
+    <div className="flex-shrink-0 border-t border-surface-border bg-surface-dark/95 backdrop-blur-md p-3 sm:p-4">
       <div className="max-w-4xl mx-auto">
         {/* Active Context Banner */}
         {currentContext?.clientName && (

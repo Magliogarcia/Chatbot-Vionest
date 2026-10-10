@@ -38,7 +38,7 @@ export function Navbar({
   }, [mobileMenuOpen]);
 
   return (
-    <header className="h-16 border-b border-surface-border bg-surface-dark/95 backdrop-blur-md px-3 sm:px-4 flex items-center justify-between z-20 relative">
+    <header className="h-16 flex-shrink-0 border-b border-surface-border bg-surface-dark/95 backdrop-blur-md px-3 sm:px-4 flex items-center justify-between z-20 relative">
       {/* Lado izquierdo: Botón menú lateral + Logo + Título */}
       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
         <button

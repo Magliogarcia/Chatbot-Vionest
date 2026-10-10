@@ -184,7 +184,7 @@ export default function App() {
   const activeConvTitle = conversations.find((c) => c.id === currentConvId)?.title;
 
   return (
-    <div className="min-h-screen flex flex-col bg-surface-dark text-slate-100 overflow-hidden">
+    <div className="h-screen h-[100dvh] max-h-[100dvh] w-full flex flex-col bg-surface-dark text-slate-100 overflow-hidden fixed inset-0">
       {/* Top Navigation */}
       <Navbar
         systemStatus={systemStatus}
@@ -196,7 +196,7 @@ export default function App() {
       />
 
       {/* Main Workspace */}
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="flex-1 flex min-h-0 overflow-hidden relative">
         {/* Left Sidebar */}
         <Sidebar
           isOpen={sidebarOpen}
@@ -211,9 +211,9 @@ export default function App() {
         />
 
         {/* Central Chat Workspace */}
-        <main className="flex-1 flex flex-col h-[calc(100vh-4rem)] bg-gradient-to-b from-[#0B0F19] to-[#0E1422] overflow-hidden">
+        <main className="flex-1 flex flex-col min-h-0 min-w-0 bg-gradient-to-b from-[#0B0F19] to-[#0E1422] overflow-hidden">
           {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto px-4 py-6 md:px-8">
+          <div className="flex-1 overflow-y-auto min-h-0 px-3 py-4 md:px-8 md:py-6 overscroll-contain">
             <div className="max-w-4xl mx-auto h-full flex flex-col">
               {messages.length === 0 ? (
                 <EmptyState onSelectPrompt={(prompt) => handleSendMessage(prompt)} />
