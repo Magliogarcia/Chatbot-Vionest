@@ -91,9 +91,12 @@ export function ChatInput({
         </form>
 
         <div className="flex items-center justify-between mt-1.5 px-2 text-[10px] text-slate-500">
-          <span className="flex items-center gap-1">
+          <span className="hidden sm:flex items-center gap-1">
             <CornerDownLeft className="w-3 h-3" />
             Presiona <strong className="text-slate-400">Enter</strong> para enviar, <strong className="text-slate-400">Shift + Enter</strong> para salto de línea
+          </span>
+          <span className="sm:hidden text-[10px] text-slate-500">
+            Consultas sobre base de datos
           </span>
           <span>Solo datos de MongoDB</span>
         </div>
