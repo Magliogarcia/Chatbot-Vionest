@@ -162,76 +162,84 @@ export function Navbar({
           <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${mobileMenuOpen ? 'rotate-180' : ''}`} />
         </button>
 
-        {/* Menú Flotante para Móvil */}
+        {/* Menú Flotante para Móvil (Opaco y con alto contraste) */}
         {mobileMenuOpen && (
-          <div className="absolute right-3 top-16 w-60 bg-surface-card/98 backdrop-blur-xl border border-surface-border rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
-            {/* Cabecera del Usuario */}
-            <div className="px-3 py-2 bg-[#0B0F19]/70 rounded-xl mb-1.5 border border-surface-border/50">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-white truncate max-w-[120px]">{user?.username}</span>
-                <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-brand-500/20 text-brand-300 border border-brand-500/30">
-                  {user?.role}
-                </span>
+          <>
+            {/* Backdrop semitransparente para cerrar y aislar el fondo */}
+            <div
+              className="fixed inset-0 bg-black/60 z-40 md:hidden"
+              onClick={() => setMobileMenuOpen(false)}
+            />
+
+            <div className="absolute right-3 top-16 w-64 bg-[#131B2E] border border-slate-700 rounded-2xl shadow-2xl shadow-black/95 p-2.5 z-50">
+              {/* Cabecera del Usuario */}
+              <div className="px-3 py-2.5 bg-[#0B0F19] rounded-xl mb-2 border border-slate-800">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-white truncate max-w-[130px]">{user?.username}</span>
+                  <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-brand-500/20 text-brand-300 border border-brand-500/30">
+                    {user?.role}
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-300 mt-1 flex items-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full ${systemStatus?.database?.connected ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                  {systemStatus?.database?.connected
+                    ? `MongoDB: ${systemStatus.database.clientesCount} clientes`
+                    : 'BD no conectada'}
+                </p>
               </div>
-              <p className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
-                <span className={`w-1.5 h-1.5 rounded-full ${systemStatus?.database?.connected ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                {systemStatus?.database?.connected
-                  ? `MongoDB: ${systemStatus.database.clientesCount} clientes`
-                  : 'BD no conectada'}
-              </p>
-            </div>
 
-            {/* Opciones */}
-            <div className="space-y-0.5">
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  onOpenSystemModal();
-                }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-surface-hover rounded-xl transition-colors text-left cursor-pointer"
-              >
-                <Info className="w-3.5 h-3.5 text-slate-400" />
-                <span>Estado del Sistema</span>
-              </button>
-
-              {isAdmin && (
+              {/* Opciones */}
+              <div className="space-y-1">
                 <button
                   onClick={() => {
                     setMobileMenuOpen(false);
-                    onOpenAdminModal();
+                    onOpenSystemModal();
                   }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-surface-hover rounded-xl transition-colors text-left cursor-pointer"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-200 hover:text-white hover:bg-slate-800/90 rounded-xl transition-colors text-left cursor-pointer"
                 >
-                  <UserPlus className="w-3.5 h-3.5 text-brand-400" />
-                  <span>Crear Nuevo Usuario</span>
+                  <Info className="w-4 h-4 text-brand-400" />
+                  <span>Estado del Sistema</span>
                 </button>
-              )}
 
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  onOpenPasswordModal();
-                }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-surface-hover rounded-xl transition-colors text-left cursor-pointer"
-              >
-                <KeyRound className="w-3.5 h-3.5 text-slate-400" />
-                <span>Cambiar Contraseña</span>
-              </button>
+                {isAdmin && (
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onOpenAdminModal();
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-200 hover:text-white hover:bg-slate-800/90 rounded-xl transition-colors text-left cursor-pointer"
+                  >
+                    <UserPlus className="w-4 h-4 text-brand-400" />
+                    <span>Crear Nuevo Usuario</span>
+                  </button>
+                )}
 
-              <div className="h-[1px] bg-surface-border my-1" />
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    onOpenPasswordModal();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-200 hover:text-white hover:bg-slate-800/90 rounded-xl transition-colors text-left cursor-pointer"
+                >
+                  <KeyRound className="w-4 h-4 text-slate-400" />
+                  <span>Cambiar Contraseña</span>
+                </button>
 
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  logout();
-                }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-red-400 hover:text-red-300 hover:bg-red-950/30 rounded-xl transition-colors text-left cursor-pointer"
-              >
-                <LogOut className="w-3.5 h-3.5 text-red-400" />
-                <span>Cerrar Sesión</span>
-              </button>
+                <div className="h-[1px] bg-slate-800 my-1.5" />
+
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    logout();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-red-400 hover:text-red-300 hover:bg-red-950/40 rounded-xl transition-colors text-left cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4 text-red-400" />
+                  <span>Cerrar Sesión</span>
+                </button>
+              </div>
             </div>
-          </div>
+          </>
         )}
       </div>
     </header>
