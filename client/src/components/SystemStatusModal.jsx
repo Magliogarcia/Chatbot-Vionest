@@ -22,7 +22,7 @@ export function SystemStatusModal({ isOpen, onClose, systemStatus }) {
 
         <div className="mt-4 space-y-4 text-xs">
           {/* MongoDB Status Box */}
-          <div className="p-4 bg-[#0B0F19] border border-surface-border rounded-xl space-y-2">
+          <div className="p-4 bg-surface-dark border border-surface-border rounded-xl space-y-2">
             <div className="flex items-center justify-between">
               <span className="font-semibold text-white flex items-center gap-2">
                 <Database className="w-4 h-4 text-brand-400" />
@@ -53,7 +53,7 @@ export function SystemStatusModal({ isOpen, onClose, systemStatus }) {
           </div>
 
           {/* Gemini AI Status Box */}
-          <div className="p-4 bg-[#0B0F19] border border-surface-border rounded-xl space-y-2">
+          <div className="p-4 bg-surface-dark border border-surface-border rounded-xl space-y-2">
             <div className="flex items-center justify-between">
               <span className="font-semibold text-white flex items-center gap-2">
                 <Cpu className="w-4 h-4 text-accent-cyan" />
@@ -79,7 +79,7 @@ export function SystemStatusModal({ isOpen, onClose, systemStatus }) {
                   <ol className="list-decimal pl-4 space-y-1 text-[11px] text-amber-300/90">
                     <li>Ingresa a <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="underline font-bold text-white inline-flex items-center gap-0.5">Google AI Studio <ExternalLink className="w-2.5 h-2.5 inline" /></a></li>
                     <li>Crea tu API Key gratuita.</li>
-                    <li>Agrega la clave en <code className="bg-[#0B0F19] px-1 rounded text-white">server/.env</code> en el parámetro <code className="text-white">GEMINI_API_KEY</code>.</li>
+                    <li>Agrega la clave en <code className="bg-surface-dark px-1 rounded text-white">server/.env</code> en el parámetro <code className="text-white">GEMINI_API_KEY</code>.</li>
                     <li>Reinicia el servidor backend.</li>
                   </ol>
                   <p className="mt-1.5 text-[10px] text-slate-400">
@@ -103,7 +103,7 @@ export function SystemStatusModal({ isOpen, onClose, systemStatus }) {
         <div className="mt-6 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white font-medium rounded-xl transition-colors cursor-pointer text-xs"
+            className="px-4 py-2 bg-brand-500 hover:bg-brand-400 text-white font-medium rounded-xl transition-colors cursor-pointer text-xs"
           >
             Entendido
           </button>

@@ -17,7 +17,7 @@ function formatMarkdown(text) {
     // Reemplazar cursiva *texto* o _texto_
     processed = processed.replace(/(?:\*|_)([^*_]+)(?:\*|_)/g, '<em class="text-slate-300 italic">$1</em>');
     // Reemplazar código `codigo`
-    processed = processed.replace(/`([^`]+)`/g, '<code class="bg-[#0B0F19] text-brand-300 px-1.5 py-0.5 rounded text-xs font-mono">$1</code>');
+    processed = processed.replace(/`([^`]+)`/g, '<code class="bg-surface-dark text-brand-300 px-1.5 py-0.5 rounded text-xs font-mono">$1</code>');
     return processed;
   };
 
@@ -128,7 +128,7 @@ export function MessageBubble({ message, onSelectMatch }) {
         <div
           className={`relative rounded-2xl px-4 py-3.5 text-sm shadow-md transition-all ${
             isUser
-              ? 'bg-brand-600 text-white rounded-tr-xs'
+              ? 'bg-brand-500 text-white rounded-tr-xs'
               : 'bg-surface-card border border-surface-border text-slate-200 rounded-tl-xs'
           }`}
         >
@@ -153,7 +153,7 @@ export function MessageBubble({ message, onSelectMatch }) {
                   <button
                     key={item._id || idx}
                     onClick={() => onSelectMatch && onSelectMatch(idx + 1)}
-                    className="flex items-start gap-2.5 p-2.5 bg-[#0B0F19]/80 hover:bg-[#1A253D] border border-surface-border hover:border-brand-500/60 rounded-xl text-left transition-all group cursor-pointer"
+                    className="flex items-start gap-2.5 p-2.5 bg-surface-dark/80 hover:bg-surface-hover border border-surface-border hover:border-brand-500/60 rounded-xl text-left transition-all group cursor-pointer"
                   >
                     <span className="w-5 h-5 rounded-full bg-brand-500/20 text-brand-400 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:bg-brand-500 group-hover:text-white transition-colors">
                       {idx + 1}
@@ -216,7 +216,7 @@ export function MessageBubble({ message, onSelectMatch }) {
 
       {/* User Avatar */}
       {isUser && (
-        <div className="w-8 h-8 rounded-xl bg-brand-700 border border-brand-500/50 flex items-center justify-center flex-shrink-0 shadow-sm mt-0.5">
+        <div className="w-8 h-8 rounded-xl bg-brand-500 border border-brand-400/50 flex items-center justify-center flex-shrink-0 shadow-sm mt-0.5">
           <User className="w-4 h-4 text-white" />
         </div>
       )}

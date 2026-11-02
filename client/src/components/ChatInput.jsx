@@ -32,7 +32,7 @@ export function ChatInput({
       <div className="max-w-4xl mx-auto">
         {/* Active Context Banner */}
         {currentContext?.clientName && (
-          <div className="mb-2 flex items-center justify-between bg-brand-950/40 border border-brand-500/30 rounded-lg px-3 py-1.5 text-xs text-brand-300 animate-fade-in">
+          <div className="mb-2 flex items-center justify-between bg-brand-900/40 border border-brand-500/30 rounded-lg px-3 py-1.5 text-xs text-brand-300 animate-fade-in">
             <div className="flex items-center gap-1.5 truncate">
               <Building2 className="w-3.5 h-3.5 text-brand-400 flex-shrink-0" />
               <span>Cliente en contexto:</span>
@@ -78,7 +78,7 @@ export function ChatInput({
           <button
             type="submit"
             disabled={loading || !input.trim()}
-            className="p-2.5 bg-brand-600 hover:bg-brand-500 active:bg-brand-700 text-white rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 flex-shrink-0 cursor-pointer shadow-md shadow-brand-600/20"
+            className="p-2.5 bg-brand-500 hover:bg-brand-400 active:bg-brand-600 text-white rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 flex-shrink-0 cursor-pointer shadow-md shadow-brand-500/20"
             title="Enviar mensaje (Enter)"
             aria-label="Enviar mensaje"
           >

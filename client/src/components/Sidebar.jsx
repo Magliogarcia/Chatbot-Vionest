@@ -46,7 +46,7 @@ export function Sidebar({
               onNewConversation();
               onClose();
             }}
-            className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-brand-600 hover:bg-brand-500 active:bg-brand-700 text-white text-xs font-semibold rounded-xl transition-all shadow-md shadow-brand-600/20 cursor-pointer"
+            className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-brand-500 hover:bg-brand-400 active:bg-brand-600 text-white text-xs font-semibold rounded-xl transition-all shadow-md shadow-brand-500/20 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Nueva Conversación</span>
@@ -127,7 +127,7 @@ export function Sidebar({
         </div>
 
         {/* Sidebar Footer Status */}
-        <div className="p-3 border-t border-surface-border bg-[#0B0F19]/50 text-[11px] text-slate-400 flex items-center justify-between">
+        <div className="p-3 border-t border-surface-border bg-surface-dark/50 text-[11px] text-slate-400 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <Database className="w-3.5 h-3.5 text-brand-400" />
             <span>MongoDB vionest</span>

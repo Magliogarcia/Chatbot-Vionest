@@ -3,11 +3,11 @@
 @tailwind utilities;
 
 :root {
-  --color-primary: #7C3AED;
-  --color-secondary: #A78BFA;
-  --color-accent: #0891B2;
-  --color-bg-dark: #0B0F19;
-  --color-card-dark: #131B2E;
+  --color-primary: #2bace2;
+  --color-secondary: #3fb8e8;
+  --color-accent: #2bace2;
+  --color-bg-dark: #1b275d;
+  --color-card-dark: #283160;
 }
 
 html, body, #root {
@@ -31,17 +31,17 @@ html, body, #root {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #23304B;
+  background: #3d4e8a;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3B4D72;
+  background: #4a5d9a;
 }
 
 /* Smooth Focus Ring */
 *:focus-visible {
-  outline: 2px solid #7C3AED;
+  outline: 2px solid #2bace2;
   outline-offset: 2px;
 }
 
@@ -61,7 +61,7 @@ html, body, #root {
 
 .markdown-body h3 {
   font-size: 1.05rem;
-  border-bottom: 1px solid #1F293D;
+  border-bottom: 1px solid #3d4e8a;
   padding-bottom: 0.25rem;
 }
 
@@ -85,14 +85,14 @@ html, body, #root {
 }
 
 .markdown-body a {
-  color: #38BDF8;
+  color: #3fb8e8;
   text-decoration: underline;
   text-underline-offset: 3px;
   transition: color 0.15s ease;
 }
 
 .markdown-body a:hover {
-  color: #7DD3FC;
+  color: #6ec8f0;
 }
 
 .markdown-body strong {

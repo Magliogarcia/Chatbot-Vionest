@@ -50,9 +50,9 @@ export function Navbar({
         </button>
 
         <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-brand-600 to-accent-cyan p-0.5 shadow-md shadow-brand-600/20 flex-shrink-0">
-            <div className="w-full h-full bg-[#0B0F19] rounded-[10px] flex items-center justify-center">
-              <Database className="w-4 h-4 text-brand-400" />
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-brand-500 to-brand-700 p-0.5 shadow-md shadow-brand-500/20 flex-shrink-0">
+            <div className="w-full h-full bg-surface-dark rounded-[10px] flex items-center justify-center overflow-hidden">
+              <img src="/logo.webp" alt="Vionest" className="w-5 h-5 sm:w-6 sm:h-6 object-contain" />
             </div>
           </div>
           <div className="min-w-0">
@@ -150,13 +150,13 @@ export function Navbar({
           onClick={() => setMobileMenuOpen((prev) => !prev)}
           className={`flex items-center gap-1.5 p-1.5 rounded-lg border transition-all cursor-pointer ${
             mobileMenuOpen
-              ? 'bg-brand-600/20 border-brand-500 text-white'
+              ? 'bg-brand-500/20 border-brand-500 text-white'
               : 'bg-surface-card border-surface-border text-slate-300 hover:text-white'
           }`}
           title="Menú de usuario"
           aria-label="Menú de usuario"
         >
-          <div className="w-6 h-6 rounded-md bg-gradient-to-tr from-brand-600 to-accent-cyan flex items-center justify-center text-[11px] font-bold text-white uppercase shadow-sm">
+          <div className="w-6 h-6 rounded-md bg-gradient-to-tr from-brand-500 to-brand-700 flex items-center justify-center text-[11px] font-bold text-white uppercase shadow-sm">
             {user?.username ? user.username.charAt(0) : 'U'}
           </div>
           <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${mobileMenuOpen ? 'rotate-180' : ''}`} />
@@ -171,9 +171,9 @@ export function Navbar({
               onClick={() => setMobileMenuOpen(false)}
             />
 
-            <div className="absolute right-3 top-16 w-64 bg-[#131B2E] border border-slate-700 rounded-2xl shadow-2xl shadow-black/95 p-2.5 z-50">
+            <div className="absolute right-3 top-16 w-64 bg-surface-card border border-surface-border rounded-2xl shadow-2xl shadow-black/95 p-2.5 z-50">
               {/* Cabecera del Usuario */}
-              <div className="px-3 py-2.5 bg-[#0B0F19] rounded-xl mb-2 border border-slate-800">
+              <div className="px-3 py-2.5 bg-surface-dark rounded-xl mb-2 border border-surface-border">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-white truncate max-w-[130px]">{user?.username}</span>
                   <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-brand-500/20 text-brand-300 border border-brand-500/30">
@@ -195,7 +195,7 @@ export function Navbar({
                     setMobileMenuOpen(false);
                     onOpenSystemModal();
                   }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-200 hover:text-white hover:bg-slate-800/90 rounded-xl transition-colors text-left cursor-pointer"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-200 hover:text-white hover:bg-surface-hover rounded-xl transition-colors text-left cursor-pointer"
                 >
                   <Info className="w-4 h-4 text-brand-400" />
                   <span>Estado del Sistema</span>
@@ -207,7 +207,7 @@ export function Navbar({
                       setMobileMenuOpen(false);
                       onOpenAdminModal();
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-200 hover:text-white hover:bg-slate-800/90 rounded-xl transition-colors text-left cursor-pointer"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-200 hover:text-white hover:bg-surface-hover rounded-xl transition-colors text-left cursor-pointer"
                   >
                     <UserPlus className="w-4 h-4 text-brand-400" />
                     <span>Crear Nuevo Usuario</span>
@@ -219,13 +219,13 @@ export function Navbar({
                     setMobileMenuOpen(false);
                     onOpenPasswordModal();
                   }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-200 hover:text-white hover:bg-slate-800/90 rounded-xl transition-colors text-left cursor-pointer"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-200 hover:text-white hover:bg-surface-hover rounded-xl transition-colors text-left cursor-pointer"
                 >
                   <KeyRound className="w-4 h-4 text-slate-400" />
                   <span>Cambiar Contraseña</span>
                 </button>
 
-                <div className="h-[1px] bg-slate-800 my-1.5" />
+                <div className="h-[1px] bg-surface-border my-1.5" />
 
                 <button
                   onClick={() => {

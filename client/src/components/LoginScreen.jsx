@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
-import { Lock, User, ArrowRight, ShieldCheck, AlertCircle, Database } from 'lucide-react';
+import { Lock, User, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
 
 export function LoginScreen() {
   const { login } = useAuth();
@@ -28,16 +28,16 @@ export function LoginScreen() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-[#070A12] via-[#0B0F19] to-[#121028]">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-[#111a4a] via-[#1b275d] to-[#283160]">
       {/* Background glow effects */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[350px] bg-brand-600/15 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[350px] bg-brand-500/15 rounded-full blur-[120px] pointer-events-none" />
 
       <div className="relative w-full max-w-md bg-surface-card border border-surface-border/70 rounded-2xl shadow-2xl p-8 backdrop-blur-xl animate-fade-in">
         {/* Header Branding */}
         <div className="flex flex-col items-center text-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-brand-600 to-accent-cyan p-0.5 shadow-lg shadow-brand-600/25 mb-4 flex items-center justify-center">
-            <div className="w-full h-full bg-[#0B0F19] rounded-[14px] flex items-center justify-center">
-              <Database className="w-7 h-7 text-brand-400" />
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-brand-500 to-brand-700 p-0.5 shadow-lg shadow-brand-500/25 mb-4 flex items-center justify-center">
+            <div className="w-full h-full bg-surface-dark rounded-[14px] flex items-center justify-center overflow-hidden">
+              <img src="/logo.webp" alt="Vionest Logo" className="w-12 h-12 object-contain" />
             </div>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-white">VIONEST</h1>
@@ -73,7 +73,7 @@ export function LoginScreen() {
                 placeholder="Ej. admin"
                 autoComplete="username"
                 required
-                className="w-full pl-10 pr-4 py-2.5 bg-[#0B0F19]/80 border border-surface-border text-white placeholder-slate-500 rounded-xl focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-colors text-sm"
+                className="w-full pl-10 pr-4 py-2.5 bg-surface-dark/80 border border-surface-border text-white placeholder-slate-500 rounded-xl focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-colors text-sm"
               />
             </div>
           </div>
@@ -94,7 +94,7 @@ export function LoginScreen() {
                 placeholder="••••••••"
                 autoComplete="current-password"
                 required
-                className="w-full pl-10 pr-4 py-2.5 bg-[#0B0F19]/80 border border-surface-border text-white placeholder-slate-500 rounded-xl focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-colors text-sm"
+                className="w-full pl-10 pr-4 py-2.5 bg-surface-dark/80 border border-surface-border text-white placeholder-slate-500 rounded-xl focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-colors text-sm"
               />
             </div>
           </div>
@@ -102,7 +102,7 @@ export function LoginScreen() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full mt-2 py-3 px-4 bg-brand-600 hover:bg-brand-500 active:bg-brand-700 text-white font-medium text-sm rounded-xl transition-all duration-150 flex items-center justify-center gap-2 shadow-lg shadow-brand-600/25 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            className="w-full mt-2 py-3 px-4 bg-brand-500 hover:bg-brand-400 active:bg-brand-600 text-white font-medium text-sm rounded-xl transition-all duration-150 flex items-center justify-center gap-2 shadow-lg shadow-brand-500/25 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             {loading ? (
               <>

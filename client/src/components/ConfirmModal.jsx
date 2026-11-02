@@ -28,7 +28,7 @@ export function ConfirmModal({ isOpen, onClose, onConfirm, title, message, confi
           <button
             type="button"
             onClick={onClose}
-            className="px-3 py-1.5 bg-surface-dark hover:bg-[#1A253D] text-slate-300 text-xs font-medium rounded-xl transition-colors cursor-pointer"
+            className="px-3 py-1.5 bg-surface-dark hover:bg-surface-hover text-slate-300 text-xs font-medium rounded-xl transition-colors cursor-pointer"
           >
             Cancelar
           </button>

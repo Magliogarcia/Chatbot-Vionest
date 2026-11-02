@@ -85,7 +85,7 @@ export function ChangePasswordModal({ isOpen, onClose }) {
               required
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
-              className="w-full px-3 py-2 bg-[#0B0F19] border border-surface-border rounded-xl text-white text-sm focus:border-brand-500 focus:outline-none"
+              className="w-full px-3 py-2 bg-surface-dark border border-surface-border rounded-xl text-white text-sm focus:border-brand-500 focus:outline-none"
             />
           </div>
 
@@ -98,7 +98,7 @@ export function ChangePasswordModal({ isOpen, onClose }) {
               required
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full px-3 py-2 bg-[#0B0F19] border border-surface-border rounded-xl text-white text-sm focus:border-brand-500 focus:outline-none"
+              className="w-full px-3 py-2 bg-surface-dark border border-surface-border rounded-xl text-white text-sm focus:border-brand-500 focus:outline-none"
             />
           </div>
 
@@ -111,7 +111,7 @@ export function ChangePasswordModal({ isOpen, onClose }) {
               required
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full px-3 py-2 bg-[#0B0F19] border border-surface-border rounded-xl text-white text-sm focus:border-brand-500 focus:outline-none"
+              className="w-full px-3 py-2 bg-surface-dark border border-surface-border rounded-xl text-white text-sm focus:border-brand-500 focus:outline-none"
             />
           </div>
 
@@ -119,14 +119,14 @@ export function ChangePasswordModal({ isOpen, onClose }) {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-surface-dark hover:bg-[#1A253D] text-slate-300 text-xs font-medium rounded-xl transition-colors cursor-pointer"
+              className="px-4 py-2 bg-surface-dark hover:bg-surface-hover text-slate-300 text-xs font-medium rounded-xl transition-colors cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-medium rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
+              className="px-4 py-2 bg-brand-500 hover:bg-brand-400 active:bg-brand-600 text-white text-xs font-medium rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
             >
               {loading ? 'Actualizando...' : 'Guardar Nueva Contraseña'}
             </button>

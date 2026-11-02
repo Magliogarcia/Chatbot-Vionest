@@ -91,7 +91,7 @@ export function AdminCreateUserModal({ isOpen, onClose }) {
             onClick={() => setTab('create')}
             className={`flex-1 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
               tab === 'create'
-                ? 'bg-brand-600 text-white shadow-sm'
+                ? 'bg-brand-500 text-white shadow-sm'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -102,7 +102,7 @@ export function AdminCreateUserModal({ isOpen, onClose }) {
             onClick={() => setTab('list')}
             className={`flex-1 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
               tab === 'list'
-                ? 'bg-brand-600 text-white shadow-sm'
+                ? 'bg-brand-500 text-white shadow-sm'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -137,7 +137,7 @@ export function AdminCreateUserModal({ isOpen, onClose }) {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="ej: carlos.perez"
-                className="w-full px-3 py-2 bg-[#0B0F19] border border-surface-border rounded-xl text-white text-sm focus:border-brand-500 focus:outline-none"
+                className="w-full px-3 py-2 bg-surface-dark border border-surface-border rounded-xl text-white text-sm focus:border-brand-500 focus:outline-none"
               />
             </div>
 
@@ -151,7 +151,7 @@ export function AdminCreateUserModal({ isOpen, onClose }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full px-3 py-2 bg-[#0B0F19] border border-surface-border rounded-xl text-white text-sm focus:border-brand-500 focus:outline-none"
+                className="w-full px-3 py-2 bg-surface-dark border border-surface-border rounded-xl text-white text-sm focus:border-brand-500 focus:outline-none"
               />
             </div>
 
@@ -162,7 +162,7 @@ export function AdminCreateUserModal({ isOpen, onClose }) {
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
-                className="w-full px-3 py-2 bg-[#0B0F19] border border-surface-border rounded-xl text-white text-sm focus:border-brand-500 focus:outline-none cursor-pointer"
+                className="w-full px-3 py-2 bg-surface-dark border border-surface-border rounded-xl text-white text-sm focus:border-brand-500 focus:outline-none cursor-pointer"
               >
                 <option value="employee">Empleado (Solo consulta de clientes)</option>
                 <option value="admin">Administrador</option>
@@ -173,14 +173,14 @@ export function AdminCreateUserModal({ isOpen, onClose }) {
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 bg-surface-dark hover:bg-[#1A253D] text-slate-300 text-xs font-medium rounded-xl transition-colors cursor-pointer"
+                className="px-4 py-2 bg-surface-dark hover:bg-surface-hover text-slate-300 text-xs font-medium rounded-xl transition-colors cursor-pointer"
               >
                 Cerrar
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-medium rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
+                className="px-4 py-2 bg-brand-500 hover:bg-brand-400 active:bg-brand-600 text-white text-xs font-medium rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
               >
                 {loading ? 'Creando...' : 'Crear Cuenta'}
               </button>

@@ -7,47 +7,36 @@
 ---
 
 **Project:** Vionest Chatbot
-**Generated:** 2026-10-08 23:05:17
-**Category:** AI/Chatbot Platform
+**Updated:** 2026-11-02
+**Category:** AI/Chatbot Platform (Internal Enterprise)
 
 ---
 
 ## Global Rules
 
-### Color Palette
+### Color Palette (Brand Identity)
 
-| Role | Hex | CSS Variable |
-|------|-----|--------------|
-| Primary | `#7C3AED` | `--color-primary` |
-| On Primary | `#FFFFFF` | `--color-on-primary` |
-| Secondary | `#A78BFA` | `--color-secondary` |
-| On Secondary | `#0F172A` | `--color-on-secondary` |
-| Accent/CTA | `#0891B2` | `--color-accent` |
-| On Accent/CTA | `#000000` | `--color-on-accent` |
-| Background | `#FAF5FF` | `--color-background` |
-| Foreground | `#1E1B4B` | `--color-foreground` |
-| Card | `#FFFFFF` | `--color-card` |
-| Card Foreground | `#1E1B4B` | `--color-card-foreground` |
-| Muted | `#ECEEF9` | `--color-muted` |
-| Muted Foreground | `#475569` | `--color-muted-foreground` |
-| Border | `#DDD6FE` | `--color-border` |
-| Destructive | `#DC2626` | `--color-destructive` |
-| On Destructive | `#FFFFFF` | `--color-on-destructive` |
-| Ring | `#7C3AED` | `--color-ring` |
+| Role | Hex | CSS Variable / Tailwind | Usage |
+|------|-----|-------------------------|-------|
+| Primary | `#2bace2` | `--color-primary` / `brand-500` | Accents, active elements, CTAs |
+| Secondary | `#3fb8e8` | `--color-secondary` / `brand-400` | Links, focus rings, highlights |
+| Background Dark | `#1b275d` | `--color-bg-dark` / `surface-dark` | App background, deep containers |
+| Surface / Card | `#283160` | `--color-card-dark` / `surface-card` | Message cards, modals, sidebars |
+| Surface Hover | `#324078` | `surface-hover` | Interactive hover states |
+| Border | `#3d4e8a` | `surface-border` | Subtle dividing lines & borders |
+| Text Primary | `#ffffff` | `text-white` | Headings, key text |
+| Text Muted | `#94a3b8` | `text-slate-400` | Subtitles, timestamps, placeholders |
+| Destructive | `#dc2626` | `text-red-500` / `bg-red-600` | Delete actions, errors |
+| Success | `#10b981` | `text-emerald-400` | Connected state, confirmations |
 
-**Color Notes:** AI purple + cyan interactions [Accent adjusted from #06B6D4]
+**Color Notes:** Paleta oficial de marca Vionest basada en Azul Profundo (`#1b275d`), Azul Marino Medio (`#283160`), Cyan Primario (`#2bace2`) y Blanco (`#ffffff`).
 
 ### Typography
 
 - **Heading Font:** Inter
 - **Body Font:** Inter
-- **Mood:** flat, clean, system, bold, geometric, cross-platform, icon, poster, minimal, functional, responsive
-- **Google Fonts:** [Inter + Inter](https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap)
-
-**CSS Import:**
-```css
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
-```
+- **Mood:** clean, technical, high-contrast, modern dark UI, enterprise-ready
+- **Google Fonts:** [Inter](https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap)
 
 ### Spacing Variables
 
@@ -59,16 +48,6 @@
 | `--space-lg` | `24px` / `1.5rem` | Section padding |
 | `--space-xl` | `32px` / `2rem` | Large gaps |
 | `--space-2xl` | `48px` / `3rem` | Section margins |
-| `--space-3xl` | `64px` / `4rem` | Hero padding |
-
-### Shadow Depths
-
-| Level | Value | Usage |
-|-------|-------|-------|
-| `--shadow-sm` | `0 1px 2px rgba(0,0,0,0.05)` | Subtle lift |
-| `--shadow-md` | `0 4px 6px rgba(0,0,0,0.1)` | Cards, buttons |
-| `--shadow-lg` | `0 10px 15px rgba(0,0,0,0.1)` | Modals, dropdowns |
-| `--shadow-xl` | `0 20px 25px rgba(0,0,0,0.15)` | Hero images, featured cards |
 
 ---
 
@@ -79,84 +58,55 @@
 ```css
 /* Primary Button */
 .btn-primary {
-  background: #0891B2;
-  color: #000000;
-  padding: 12px 24px;
-  border-radius: 8px;
+  background: #2bace2;
+  color: #ffffff;
+  padding: 10px 18px;
+  border-radius: 12px;
   font-weight: 600;
-  transition: all 200ms ease;
+  transition: all 150ms ease;
   cursor: pointer;
+  box-shadow: 0 4px 12px rgba(43, 172, 226, 0.25);
 }
 
 .btn-primary:hover {
-  opacity: 0.9;
+  background: #3fb8e8;
   transform: translateY(-1px);
 }
 
 /* Secondary Button */
 .btn-secondary {
-  background: transparent;
-  color: #7C3AED;
-  border: 2px solid #7C3AED;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
-  transition: all 200ms ease;
+  background: #283160;
+  color: #ffffff;
+  border: 1px solid #3d4e8a;
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-weight: 500;
+  transition: all 150ms ease;
   cursor: pointer;
 }
 ```
 
-### Cards
+### Cards & Bubbles
 
 ```css
 .card {
-  background: #FAF5FF;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: var(--shadow-md);
-  transition: all 200ms ease;
-  cursor: pointer;
-}
-
-.card:hover {
-  box-shadow: var(--shadow-lg);
-  transform: translateY(-2px);
-}
-```
-
-### Inputs
-
-```css
-.input {
-  padding: 12px 16px;
-  border: 1px solid #E2E8F0;
-  border-radius: 8px;
-  font-size: 16px;
-  transition: border-color 200ms ease;
-}
-
-.input:focus {
-  border-color: #7C3AED;
-  outline: none;
-  box-shadow: 0 0 0 3px #7C3AED20;
-}
-```
-
-### Modals
-
-```css
-.modal-overlay {
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
-}
-
-.modal {
-  background: white;
+  background: #283160;
+  border: 1px solid #3d4e8a;
   border-radius: 16px;
-  padding: 32px;
-  box-shadow: var(--shadow-xl);
-  max-width: 500px;
-  width: 90%;
+  padding: 20px;
+}
+
+.chat-bubble-assistant {
+  background: #283160;
+  border: 1px solid #3d4e8a;
+  color: #f1f5f9;
+  border-radius: 16px;
+}
+
+.chat-bubble-user {
+  background: #2bace2;
+  color: #ffffff;
+  border-radius: 16px;
 }
 ```
 
@@ -164,51 +114,7 @@
 
 ## Style Guidelines
 
-**Style:** AI-Native UI
-
-**Keywords:** Chatbot, conversational, voice, assistant, agentic, ambient, minimal chrome, streaming text, AI interactions
-
-**Best For:** AI products, chatbots, voice assistants, copilots, AI-powered tools, conversational interfaces
-
-**Key Effects:** Typing indicators (3-dot pulse), streaming text animations, pulse animations, context cards, smooth reveals
-
-### Page Pattern
-
-**Pattern Name:** Product Demo + Features
-
-- **Conversion Strategy:** Use an interactive demo only when it explains value better than static media. Provide captions, transcript, visible play/pause controls, and a non-video fallback; do not autoplay under reduced motion. Pause media when offscreen or hidden and keep the final product state available as static content.
-- **CTA Placement:** Video center + CTA right/bottom
-- **Section Order:** Hero > Product video/mockup (center) > Feature breakdown per section > Comparison (optional) > CTA
-
----
-
-## Anti-Patterns (Do NOT Use)
-
-- ❌ Heavy chrome
-- ❌ Slow response feedback
-
-### Additional Forbidden Patterns
-
-- ❌ **Emojis as icons** — Use SVG icons (Heroicons, Lucide, Simple Icons)
-- ❌ **Missing cursor:pointer** — All clickable elements must have cursor:pointer
-- ❌ **Layout-shifting hovers** — Avoid scale transforms that shift layout
-- ❌ **Low contrast text** — Maintain 4.5:1 minimum contrast ratio
-- ❌ **Instant state changes** — Always use transitions (150-300ms)
-- ❌ **Invisible focus states** — Focus states must be visible for a11y
-
----
-
-## Pre-Delivery Checklist
-
-Before delivering any UI code, verify:
-
-- [ ] No emojis used as icons (use SVG instead)
-- [ ] All icons from consistent icon set (Heroicons/Lucide)
-- [ ] `cursor-pointer` on all clickable elements
-- [ ] Hover states with smooth transitions (150-300ms)
-- [ ] Light mode: text contrast 4.5:1 minimum
-- [ ] Focus states visible for keyboard navigation
-- [ ] `prefers-reduced-motion` respected
-- [ ] Responsive: 375px, 768px, 1024px, 1440px
-- [ ] No content hidden behind fixed navbars
-- [ ] No horizontal scroll on mobile
+**Style:** Modern Dark UI / AI Copilot
+**Assets:**
+- Logo: `/logo.webp` (ubicado en `client/public/logo.webp`)
+- Favicon: `/favicon.ico` (ubicado en `client/public/favicon.ico`)

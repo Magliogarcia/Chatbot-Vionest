@@ -38,7 +38,7 @@ export function EmptyState({ onSelectPrompt }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-6 text-center max-w-2xl mx-auto animate-fade-in">
       {/* Central Icon */}
-      <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-brand-600/30 to-accent-cyan/30 border border-brand-500/30 flex items-center justify-center mb-5 shadow-lg shadow-brand-600/10">
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-brand-500/30 to-brand-400/30 border border-brand-500/30 flex items-center justify-center mb-5 shadow-lg shadow-brand-500/10">
         <Database className="w-8 h-8 text-brand-400" />
       </div>
 

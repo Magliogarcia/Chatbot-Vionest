@@ -211,7 +211,7 @@ export default function App() {
         />
 
         {/* Central Chat Workspace */}
-        <main className="flex-1 flex flex-col min-h-0 min-w-0 bg-gradient-to-b from-[#0B0F19] to-[#0E1422] overflow-hidden">
+        <main className="flex-1 flex flex-col min-h-0 min-w-0 bg-gradient-to-b from-[#1b275d] to-[#212c5e] overflow-hidden">
           {/* Messages Area */}
           <div className="flex-1 overflow-y-auto min-h-0 px-3 py-4 md:px-8 md:py-6 overscroll-contain">
             <div className="max-w-4xl mx-auto h-full flex flex-col">
