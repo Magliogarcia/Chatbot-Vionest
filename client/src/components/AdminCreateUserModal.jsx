@@ -69,30 +69,30 @@ export function AdminCreateUserModal({ isOpen, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-lg bg-[#283160] border border-[#3d4e8a] rounded-2xl shadow-2xl p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fade-in">
+      <div className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl shadow-2xl p-6">
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-[#3d4e8a]">
+        <div className="flex items-center justify-between pb-4 border-b border-slate-200">
           <div className="flex items-center gap-2.5">
             <Shield className="w-5 h-5 text-[#2bace2]" />
-            <h3 className="font-bold text-white text-base">Administración de Empleados</h3>
+            <h3 className="font-bold text-[#1b275d] text-base">Administración de Empleados</h3>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-300 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+            className="p-1.5 text-slate-400 hover:text-[#1b275d] rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mt-4 p-1.5 bg-[#1b275d] rounded-xl border border-[#3d4e8a]">
+        <div className="flex gap-2 mt-4 p-1.5 bg-slate-100 rounded-xl border border-slate-200">
           <button
             onClick={() => setTab('create')}
             className={`flex-1 py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
               tab === 'create'
-                ? 'bg-[#2bace2] text-white shadow-md'
-                : 'text-slate-200 hover:text-white hover:bg-white/5'
+                ? 'bg-[#2bace2] text-white shadow-sm'
+                : 'text-slate-600 hover:text-[#1b275d]'
             }`}
           >
             <UserPlus className="w-4 h-4" />
@@ -102,8 +102,8 @@ export function AdminCreateUserModal({ isOpen, onClose }) {
             onClick={() => setTab('list')}
             className={`flex-1 py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
               tab === 'list'
-                ? 'bg-[#2bace2] text-white shadow-md'
-                : 'text-slate-200 hover:text-white hover:bg-white/5'
+                ? 'bg-[#2bace2] text-white shadow-sm'
+                : 'text-slate-600 hover:text-[#1b275d]'
             }`}
           >
             <Users className="w-4 h-4" />
@@ -112,15 +112,15 @@ export function AdminCreateUserModal({ isOpen, onClose }) {
         </div>
 
         {errorMsg && (
-          <div className="mt-4 p-3.5 bg-red-950/60 border border-red-500/50 rounded-xl flex items-center gap-2.5 text-white text-xs font-medium">
-            <AlertCircle className="w-4 h-4 flex-shrink-0 text-red-400" />
+          <div className="mt-4 p-3.5 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2.5 text-red-700 text-xs font-medium">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 text-red-500" />
             <span>{errorMsg}</span>
           </div>
         )}
 
         {successMsg && (
-          <div className="mt-4 p-3.5 bg-emerald-950/60 border border-emerald-500/50 rounded-xl flex items-center gap-2.5 text-emerald-300 text-xs font-medium">
-            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+          <div className="mt-4 p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2.5 text-emerald-800 text-xs font-medium">
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-600" />
             <span>{successMsg}</span>
           </div>
         )}
@@ -128,7 +128,7 @@ export function AdminCreateUserModal({ isOpen, onClose }) {
         {tab === 'create' ? (
           <form onSubmit={handleCreate} className="mt-4 space-y-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-white mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#1b275d] mb-1.5">
                 Nombre de Usuario
               </label>
               <input
@@ -137,12 +137,12 @@ export function AdminCreateUserModal({ isOpen, onClose }) {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="ej: carlos.perez"
-                className="w-full px-3.5 py-2.5 bg-[#1b275d] border border-[#3d4e8a] rounded-xl text-white font-medium text-sm focus:border-[#2bace2] focus:ring-1 focus:ring-[#2bace2] focus:outline-none placeholder:text-slate-400"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[#1b275d] font-semibold text-sm focus:bg-white focus:border-[#2bace2] focus:ring-1 focus:ring-[#2bace2] focus:outline-none placeholder:text-slate-400"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-white mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#1b275d] mb-1.5">
                 Contraseña Temporal
               </label>
               <input
@@ -151,29 +151,29 @@ export function AdminCreateUserModal({ isOpen, onClose }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full px-3.5 py-2.5 bg-[#1b275d] border border-[#3d4e8a] rounded-xl text-white font-medium text-sm focus:border-[#2bace2] focus:ring-1 focus:ring-[#2bace2] focus:outline-none placeholder:text-slate-400"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[#1b275d] font-semibold text-sm focus:bg-white focus:border-[#2bace2] focus:ring-1 focus:ring-[#2bace2] focus:outline-none placeholder:text-slate-400"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-white mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#1b275d] mb-1.5">
                 Rol
               </label>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-[#1b275d] border border-[#3d4e8a] rounded-xl text-white font-medium text-sm focus:border-[#2bace2] focus:ring-1 focus:ring-[#2bace2] focus:outline-none cursor-pointer"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[#1b275d] font-semibold text-sm focus:bg-white focus:border-[#2bace2] focus:ring-1 focus:ring-[#2bace2] focus:outline-none cursor-pointer"
               >
                 <option value="employee">Empleado (Solo consulta de clientes)</option>
                 <option value="admin">Administrador</option>
               </select>
             </div>
 
-            <div className="flex justify-end gap-2.5 pt-4 border-t border-[#3d4e8a]">
+            <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-200">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 bg-[#1b275d] hover:bg-white/10 text-slate-200 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
               >
                 Cerrar
               </button>
@@ -189,22 +189,22 @@ export function AdminCreateUserModal({ isOpen, onClose }) {
         ) : (
           <div className="mt-4 max-h-60 overflow-y-auto space-y-2">
             {loading ? (
-              <div className="text-center py-6 text-xs text-slate-200">Cargando cuentas...</div>
+              <div className="text-center py-6 text-xs text-slate-500">Cargando cuentas...</div>
             ) : usersList.length === 0 ? (
-              <div className="text-center py-6 text-xs text-slate-300">No hay cuentas adicionales.</div>
+              <div className="text-center py-6 text-xs text-slate-400">No hay cuentas adicionales.</div>
             ) : (
               usersList.map((u) => (
                 <div
                   key={u._id}
-                  className="flex items-center justify-between p-3 bg-[#1b275d] border border-[#3d4e8a] rounded-xl text-xs"
+                  className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs"
                 >
                   <div>
-                    <span className="font-bold text-white text-sm">{u.username}</span>
-                    <span className="ml-2.5 text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-[#283160] border border-[#2bace2]/40 text-[#2bace2]">
+                    <span className="font-bold text-[#1b275d] text-sm">{u.username}</span>
+                    <span className="ml-2.5 text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-[#2bace2]/15 border border-[#2bace2]/30 text-[#2bace2]">
                       {u.role}
                     </span>
                   </div>
-                  <span className="text-[11px] text-slate-300 font-medium">
+                  <span className="text-[11px] text-slate-400 font-medium">
                     {new Date(u.createdAt).toLocaleDateString()}
                   </span>
                 </div>

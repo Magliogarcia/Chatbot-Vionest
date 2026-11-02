@@ -21,19 +21,25 @@ export default {
           900: '#174f6e',
           950: '#0e3549',
         },
+        navy: {
+          deep: '#1b275d',
+          mid: '#283160',
+          light: '#3d4e8a',
+        },
         surface: {
-          dark: '#1b275d',
-          card: '#283160',
-          hover: '#324078',
-          border: '#3d4e8a',
-          muted: '#4a5d9a',
+          DEFAULT: '#ffffff',
+          subtle: '#f8fafc',
+          card: '#ffffff',
+          hover: '#f1f5f9',
+          border: '#e2e8f0',
+          muted: '#64748b',
         },
         accent: {
           cyan: '#2bace2',
-          teal: '#14B8A6',
-          amber: '#F59E0B',
-          emerald: '#10B981',
-          rose: '#F43F5E'
+          teal: '#0d9488',
+          amber: '#d97706',
+          emerald: '#059669',
+          rose: '#e11d48'
         }
       },
       fontFamily: {

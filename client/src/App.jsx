@@ -169,7 +169,7 @@ export default function App() {
   // Si está cargando la sesión inicial
   if (authLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#1b275d] text-white">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white text-[#1b275d]">
         <div className="w-10 h-10 border-3 border-[#2bace2] border-t-transparent rounded-full animate-spin mb-4" />
         <span className="text-sm font-bold tracking-wide">Iniciando Vionest Chatbot...</span>
       </div>
@@ -184,7 +184,7 @@ export default function App() {
   const activeConvTitle = conversations.find((c) => c.id === currentConvId)?.title;
 
   return (
-    <div className="h-screen h-[100dvh] max-h-[100dvh] w-full flex flex-col bg-surface-dark text-slate-100 overflow-hidden fixed inset-0">
+    <div className="h-screen h-[100dvh] max-h-[100dvh] w-full flex flex-col bg-white text-[#1b275d] overflow-hidden fixed inset-0">
       {/* Top Navigation */}
       <Navbar
         systemStatus={systemStatus}
@@ -211,7 +211,7 @@ export default function App() {
         />
 
         {/* Central Chat Workspace */}
-        <main className="flex-1 flex flex-col min-h-0 min-w-0 bg-[#1b275d] overflow-hidden">
+        <main className="flex-1 flex flex-col min-h-0 min-w-0 bg-[#f8fafc] overflow-hidden">
           {/* Messages Area */}
           <div className="flex-1 overflow-y-auto min-h-0 px-3 py-4 md:px-8 md:py-6 overscroll-contain">
             <div className="max-w-4xl mx-auto h-full flex flex-col">
@@ -230,10 +230,10 @@ export default function App() {
                   {/* Loading indicator */}
                   {loadingMessage && (
                     <div className="flex gap-3 mb-6 animate-fade-in">
-                      <div className="w-8 h-8 rounded-xl bg-[#283160] border border-[#2bace2]/40 flex items-center justify-center flex-shrink-0 shadow-sm">
+                      <div className="w-8 h-8 rounded-xl bg-white border border-[#2bace2]/40 flex items-center justify-center flex-shrink-0 shadow-sm">
                         <div className="w-4 h-4 border-2 border-[#2bace2] border-t-transparent rounded-full animate-spin" />
                       </div>
-                      <div className="bg-[#283160] border border-[#3d4e8a] rounded-2xl rounded-tl-xs px-4 py-3 text-xs text-white font-medium flex items-center gap-2.5 shadow-sm">
+                      <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-xs px-4 py-3 text-xs text-[#1b275d] font-semibold flex items-center gap-2.5 shadow-sm">
                         <span>Consultando base de datos de clientes...</span>
                         <span className="flex gap-1">
                           <span className="w-1.5 h-1.5 rounded-full bg-[#2bace2] animate-bounce" style={{ animationDelay: '0ms' }} />

@@ -6,8 +6,10 @@
   --color-primary: #2bace2;
   --color-secondary: #3fb8e8;
   --color-accent: #2bace2;
-  --color-bg-dark: #1b275d;
-  --color-card-dark: #283160;
+  --color-bg: #ffffff;
+  --color-card: #ffffff;
+  --color-text-main: #1b275d;
+  --color-text-mid: #283160;
 }
 
 html, body, #root {
@@ -18,6 +20,8 @@ html, body, #root {
   overflow: hidden;
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
+  background-color: #ffffff;
+  color: #1b275d;
 }
 
 /* Custom modern scrollbar */
@@ -31,7 +35,7 @@ html, body, #root {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #3d4e8a;
+  background: #cbd5e1;
   border-radius: 9999px;
 }
 
@@ -48,22 +52,22 @@ html, body, #root {
 /* Typographic markdown styling for chat responses */
 .markdown-body {
   line-height: 1.65;
-  color: #ffffff;
+  color: #1b275d;
 }
 
 .markdown-body h1,
 .markdown-body h2,
 .markdown-body h3 {
   font-weight: 700;
-  color: #ffffff;
+  color: #1b275d;
   margin-top: 0.75rem;
   margin-bottom: 0.5rem;
 }
 
 .markdown-body h3 {
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   color: #2bace2;
-  border-bottom: 1px solid #3d4e8a;
+  border-bottom: 1px solid #e2e8f0;
   padding-bottom: 0.35rem;
 }
 
@@ -76,12 +80,12 @@ html, body, #root {
 
 .markdown-body li {
   margin-bottom: 0.35rem;
-  color: #ffffff;
+  color: #1b275d;
 }
 
 .markdown-body p {
   margin-bottom: 0.65rem;
-  color: #ffffff;
+  color: #1b275d;
 }
 
 .markdown-body p:last-child {
@@ -97,16 +101,16 @@ html, body, #root {
 }
 
 .markdown-body a:hover {
-  color: #6ec8f0;
+  color: #1a78a3;
 }
 
 .markdown-body strong {
-  color: #ffffff;
+  color: #1b275d;
   font-weight: 700;
 }
 
 .markdown-body em {
-  color: #e2e8f0;
+  color: #283160;
   font-style: italic;
   font-weight: 500;
 }

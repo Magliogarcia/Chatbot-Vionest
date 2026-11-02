@@ -46,30 +46,30 @@ export function ChangePasswordModal({ isOpen, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-md bg-[#283160] border border-[#3d4e8a] rounded-2xl shadow-2xl p-6">
-        <div className="flex items-center justify-between pb-4 border-b border-[#3d4e8a]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fade-in">
+      <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-2xl p-6">
+        <div className="flex items-center justify-between pb-4 border-b border-slate-200">
           <div className="flex items-center gap-2.5">
             <KeyRound className="w-5 h-5 text-[#2bace2]" />
-            <h3 className="font-bold text-white text-base">Cambiar Contraseña</h3>
+            <h3 className="font-bold text-[#1b275d] text-base">Cambiar Contraseña</h3>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-300 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+            className="p-1.5 text-slate-400 hover:text-[#1b275d] rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {errorMsg && (
-          <div className="mt-4 p-3.5 bg-red-950/60 border border-red-500/50 rounded-xl flex items-center gap-2.5 text-white text-xs font-medium">
-            <AlertCircle className="w-4 h-4 flex-shrink-0 text-red-400" />
+          <div className="mt-4 p-3.5 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2.5 text-red-700 text-xs font-medium">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 text-red-500" />
             <span>{errorMsg}</span>
           </div>
         )}
 
         {successMsg && (
-          <div className="mt-4 p-3.5 bg-emerald-950/60 border border-emerald-500/50 rounded-xl flex items-center gap-2.5 text-emerald-300 text-xs font-medium">
+          <div className="mt-4 p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2.5 text-emerald-800 text-xs font-medium">
             <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
             <span>{successMsg}</span>
           </div>
@@ -77,7 +77,7 @@ export function ChangePasswordModal({ isOpen, onClose }) {
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-white mb-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-[#1b275d] mb-1.5">
               Contraseña Actual
             </label>
             <input
@@ -85,12 +85,12 @@ export function ChangePasswordModal({ isOpen, onClose }) {
               required
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-[#1b275d] border border-[#3d4e8a] rounded-xl text-white font-medium text-sm focus:border-[#2bace2] focus:ring-1 focus:ring-[#2bace2] focus:outline-none placeholder:text-slate-400"
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[#1b275d] font-semibold text-sm focus:bg-white focus:border-[#2bace2] focus:ring-1 focus:ring-[#2bace2] focus:outline-none placeholder:text-slate-400"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-white mb-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-[#1b275d] mb-1.5">
               Nueva Contraseña (mín. 6 caracteres)
             </label>
             <input
@@ -98,12 +98,12 @@ export function ChangePasswordModal({ isOpen, onClose }) {
               required
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-[#1b275d] border border-[#3d4e8a] rounded-xl text-white font-medium text-sm focus:border-[#2bace2] focus:ring-1 focus:ring-[#2bace2] focus:outline-none placeholder:text-slate-400"
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[#1b275d] font-semibold text-sm focus:bg-white focus:border-[#2bace2] focus:ring-1 focus:ring-[#2bace2] focus:outline-none placeholder:text-slate-400"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-white mb-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-[#1b275d] mb-1.5">
               Confirmar Nueva Contraseña
             </label>
             <input
@@ -111,15 +111,15 @@ export function ChangePasswordModal({ isOpen, onClose }) {
               required
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-[#1b275d] border border-[#3d4e8a] rounded-xl text-white font-medium text-sm focus:border-[#2bace2] focus:ring-1 focus:ring-[#2bace2] focus:outline-none placeholder:text-slate-400"
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[#1b275d] font-semibold text-sm focus:bg-white focus:border-[#2bace2] focus:ring-1 focus:ring-[#2bace2] focus:outline-none placeholder:text-slate-400"
             />
           </div>
 
-          <div className="flex justify-end gap-2.5 pt-4 border-t border-[#3d4e8a]">
+          <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-200">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-[#1b275d] hover:bg-white/10 text-slate-200 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
             >
               Cancelar
             </button>

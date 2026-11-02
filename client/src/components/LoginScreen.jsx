@@ -28,29 +28,29 @@ export function LoginScreen() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-[#1b275d]">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[#f8fafc] relative overflow-hidden">
       {/* Background glow effects */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[350px] bg-[#2bace2]/15 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[350px] bg-[#2bace2]/10 rounded-full blur-[100px] pointer-events-none" />
 
-      <div className="relative w-full max-w-md bg-[#283160] border border-[#3d4e8a] rounded-2xl shadow-2xl p-8 backdrop-blur-xl animate-fade-in">
+      <div className="relative w-full max-w-md bg-white border border-slate-200/90 rounded-2xl shadow-xl p-8 backdrop-blur-xl animate-fade-in">
         {/* Header Branding */}
         <div className="flex flex-col items-center text-center mb-8">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-[#2bace2] to-[#1a78a3] p-0.5 shadow-lg shadow-[#2bace2]/25 mb-4 flex items-center justify-center">
-            <div className="w-full h-full bg-[#1b275d] rounded-[14px] flex items-center justify-center overflow-hidden">
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-[#2bace2] to-[#1a78a3] p-0.5 shadow-md shadow-[#2bace2]/25 mb-4 flex items-center justify-center">
+            <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center overflow-hidden">
               <img src="/logo.webp" alt="Vionest Logo" className="w-12 h-12 object-contain" />
             </div>
           </div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-white">VIONEST</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight text-[#1b275d]">VIONEST</h1>
           <p className="text-xs uppercase tracking-widest text-[#2bace2] font-bold mt-1">Chatbot Interno de Clientes</p>
-          <p className="text-sm text-slate-200 mt-2 font-medium">
+          <p className="text-sm text-slate-500 mt-2 font-medium">
             Acceso exclusivo para personal autorizado
           </p>
         </div>
 
         {/* Error Alert */}
         {errorMsg && (
-          <div className="mb-6 p-3.5 bg-red-950/60 border border-red-500/50 rounded-xl flex items-center gap-3 text-white text-sm font-medium animate-fade-in" role="alert">
-            <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+          <div className="mb-6 p-3.5 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3 text-red-700 text-sm font-medium animate-fade-in" role="alert">
+            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
             <span>{errorMsg}</span>
           </div>
         )}
@@ -58,7 +58,7 @@ export function LoginScreen() {
         {/* Login Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-white mb-2" htmlFor="username">
+            <label className="block text-xs font-bold uppercase tracking-wider text-[#1b275d] mb-2" htmlFor="username">
               Usuario
             </label>
             <div className="relative">
@@ -73,13 +73,13 @@ export function LoginScreen() {
                 placeholder="Ej. admin"
                 autoComplete="username"
                 required
-                className="w-full pl-10 pr-4 py-2.5 bg-[#1b275d] border border-[#3d4e8a] text-white font-medium placeholder:text-slate-400 rounded-xl focus:border-[#2bace2] focus:ring-1 focus:ring-[#2bace2] transition-colors text-sm"
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 text-[#1b275d] font-semibold placeholder:text-slate-400 rounded-xl focus:bg-white focus:border-[#2bace2] focus:ring-1 focus:ring-[#2bace2] transition-colors text-sm"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-white mb-2" htmlFor="password">
+            <label className="block text-xs font-bold uppercase tracking-wider text-[#1b275d] mb-2" htmlFor="password">
               Contraseña
             </label>
             <div className="relative">
@@ -94,7 +94,7 @@ export function LoginScreen() {
                 placeholder="••••••••"
                 autoComplete="current-password"
                 required
-                className="w-full pl-10 pr-4 py-2.5 bg-[#1b275d] border border-[#3d4e8a] text-white font-medium placeholder:text-slate-400 rounded-xl focus:border-[#2bace2] focus:ring-1 focus:ring-[#2bace2] transition-colors text-sm"
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 text-[#1b275d] font-semibold placeholder:text-slate-400 rounded-xl focus:bg-white focus:border-[#2bace2] focus:ring-1 focus:ring-[#2bace2] transition-colors text-sm"
               />
             </div>
           </div>
@@ -119,10 +119,10 @@ export function LoginScreen() {
         </form>
 
         {/* Development Helper Badge */}
-        <div className="mt-6 pt-5 border-t border-[#3d4e8a] text-center">
-          <div className="inline-flex items-center gap-2 text-xs text-slate-200 bg-[#1b275d] px-3.5 py-2 rounded-lg border border-[#3d4e8a]">
+        <div className="mt-6 pt-5 border-t border-slate-200 text-center">
+          <div className="inline-flex items-center gap-2 text-xs text-slate-600 bg-slate-50 px-3.5 py-2 rounded-lg border border-slate-200">
             <ShieldCheck className="w-4 h-4 text-[#2bace2]" />
-            <span>Usuario inicial de prueba: <strong className="text-white font-bold">admin</strong> / <strong className="text-white font-bold">123</strong></span>
+            <span>Usuario inicial de prueba: <strong className="text-[#1b275d] font-bold">admin</strong> / <strong className="text-[#1b275d] font-bold">123</strong></span>
           </div>
         </div>
       </div>
