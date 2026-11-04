@@ -20,7 +20,7 @@ export function cleanPhoneNumber(phone) {
 }
 
 /**
- * Búsqueda de clientes por nombre de empresa (exacta y aproximada)
+ * Búsqueda inteligente de clientes por nombre de empresa (exacta, subcadena y similitud)
  * Retorna { exactMatch: doc | null, matches: [ ...resumen ] }
  */
 export async function searchClientsByName(companyName) {
@@ -28,12 +28,18 @@ export async function searchClientsByName(companyName) {
   const trimmed = companyName.trim();
   if (!trimmed) return { exactMatch: null, matches: [] };
 
-  const normQuery = normalizeText(trimmed);
+  // Limpiar sufijos corporativos comunes como C.A, S.A, SRL, etc.
+  const cleanCorpName = trimmed
+    .replace(/\b(?:c\.?a\.?|s\.?a\.?|s\.?r\.?l\.?|corp\.?|inc\.?)\b/gi, '')
+    .replace(/[,\.]/g, '')
+    .trim();
 
-  // 1. Intento de coincidencia exacta (insensible a mayúsculas/minúsculas)
-  const escapedExact = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const normQuery = normalizeText(cleanCorpName || trimmed);
+
+  // 1. Intento de coincidencia exacta directa
+  const escapedExact = cleanCorpName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const exactDoc = await col.findOne({
-    'Nombre de la Empresa': { $regex: new RegExp(`^\\s*${escapedExact}\\s*$`, 'i') }
+    'Nombre de la Empresa': { $regex: new RegExp(`^\\s*${escapedExact}\\s*(?:c\\.?a\\.?|s\\.?a\\.?|srl)?\\s*$`, 'i') }
   });
 
   if (exactDoc) {
@@ -48,15 +54,15 @@ export async function searchClientsByName(companyName) {
     };
   }
 
-  // 2. Búsqueda por subcadena / palabras clave
-  const STOP_WORDS = new Set(['empresa', 'empresas', 'compania', 'corporacion', 'de', 'la', 'el', 'los', 'las', 'y', 'del', 'en', 'para', 'con']);
+  // 2. Búsqueda por palabras clave significativas
+  const STOP_WORDS = new Set(['empresa', 'empresas', 'compania', 'corporacion', 'de', 'la', 'el', 'los', 'las', 'y', 'del', 'en', 'para', 'con', 'te', 'estoy', 'diciendo', 'que', 'pero', 'quiero', 'saber', 'donde', 'esta', 'ubicada', 'cual', 'es', 'el', 'feedback']);
   const allWords = normQuery.split(' ').filter(w => w.length > 1);
   const significantWords = allWords.filter(w => !STOP_WORDS.has(w) && w.length >= 3);
   const wordsToSearch = significantWords.length > 0 ? significantWords : allWords;
 
   if (wordsToSearch.length === 0) return { exactMatch: null, matches: [] };
 
-  // Crear regex que contenga las palabras clave principales
+  // Coincidir con todas las palabras clave simultáneas
   const regexPattern = wordsToSearch.map(w => `(?=.*${w})`).join('');
   const candidateDocs = await col.find({
     'Nombre de la Empresa': { $regex: new RegExp(regexPattern, 'i') }
@@ -76,33 +82,52 @@ export async function searchClientsByName(companyName) {
     };
   }
 
-  // Si no hubo coincidencia con todas las palabras simultáneas, buscar con palabras significativas individuales
+  // Si no hubo coincidencia simultánea con todas, buscar individualmente solo si hay palabra muy distintiva (>4 letras)
   let finalCandidates = candidateDocs;
   if (finalCandidates.length === 0 && wordsToSearch.length > 1) {
-    const orPatterns = wordsToSearch.map(w => ({
-      'Nombre de la Empresa': { $regex: new RegExp(w, 'i') }
-    }));
-    finalCandidates = await col.find({ $or: orPatterns }).limit(20).toArray();
+    const strongWords = wordsToSearch.filter(w => w.length >= 4);
+    if (strongWords.length > 0) {
+      const orPatterns = strongWords.map(w => ({
+        'Nombre de la Empresa': { $regex: new RegExp(w, 'i') }
+      }));
+      finalCandidates = await col.find({ $or: orPatterns }).limit(20).toArray();
+    }
   }
 
-  // Calcular similitud/puntuación para ordenar y filtrar falsos positivos
+  // Calcular similitud/puntuación
   const scored = finalCandidates.map(doc => {
     const normName = normalizeText(doc['Nombre de la Empresa']);
     let score = 0;
     if (normName === normQuery) score += 100;
-    if (normName.includes(normQuery)) score += 60;
+    if (normName.includes(normQuery)) score += 70;
     
     let matchedSigCount = 0;
     for (const w of wordsToSearch) {
       if (normName.includes(w)) {
-        score += 25;
+        score += 30;
         matchedSigCount++;
       }
     }
     return { doc, score, matchedSigCount };
   })
-  .filter(item => item.score >= 25 && item.matchedSigCount > 0)
+  .filter(item => item.score >= 30 && item.matchedSigCount > 0)
   .sort((a, b) => b.score - a.score);
+
+  if (scored.length > 0) {
+    // Si el primer candidato tiene una ventaja clara (score alto o coincidencia directa de término raro como Rogil o Torgus)
+    const best = scored[0];
+    if (best.score >= 80 || (scored.length === 1 && best.score >= 50)) {
+      return {
+        exactMatch: best.doc,
+        matches: [{
+          _id: best.doc._id.toString(),
+          nombreEmpresa: best.doc['Nombre de la Empresa'],
+          telefono: best.doc['Número telefónico'] || '',
+          ubicacion: best.doc['Ubicación exacta'] || ''
+        }]
+      };
+    }
+  }
 
   const matches = scored.slice(0, 10).map(item => ({
     _id: item.doc._id.toString(),
@@ -225,18 +250,18 @@ export async function verifyPhoneNumber(phone) {
 }
 
 /**
- * Consulta de clientes por filtros dinámicos y permisivos sobre MongoDB.
- * Soporta cualquier campo de la base de datos: Ubicación exacta, Escuadrón Asignado,
- * Estatus actual, Investigador Asignado, Halcón Asignado, Observaciones, etc.
+ * Consulta de clientes por filtros dinámicos y ultra permisivos sobre MongoDB.
+ * Soporta cualquier campo: Escuadrón Asignado, Ubicación exacta, Estatus actual,
+ * Investigador Asignado, Halcón Asignado, Observaciones, Feedback Llamada, etc.
  */
-export async function queryClientsByFilter({ filterField, filterValue, limit = 25 }) {
+export async function queryClientsByFilter({ filterField, filterValue, limit = 40 }) {
   const col = getClientesCollection();
-  let targetField = filterField || 'Ubicación exacta';
+  let targetField = filterField || 'Escuadrón Asignado';
   let rawValue = String(filterValue || '').trim();
 
-  // Mapeo amigable de nombres de campos
+  // Mapeo amigable e inteligente de nombres de campo
   const normField = normalizeText(targetField);
-  if (normField.includes('ubicacion') || normField.includes('zona') || normField.includes('ciudad') || normField.includes('estado') || normField.includes('direccion')) {
+  if (normField.includes('ubicacion') || normField.includes('zona') || normField.includes('ciudad') || normField.includes('estado') || normField.includes('direccion') || normField.includes('donde')) {
     targetField = 'Ubicación exacta';
   } else if (normField.includes('escuadron')) {
     targetField = 'Escuadrón Asignado';
@@ -250,35 +275,51 @@ export async function queryClientsByFilter({ filterField, filterValue, limit = 2
     targetField = 'Contacto Principal';
   } else if (normField.includes('observacion')) {
     targetField = 'Observaciones';
+  } else if (normField.includes('feedback')) {
+    targetField = 'Feedback Llamada';
   }
 
   // Limpieza y refinamiento de búsqueda para escuadrón:
-  // "escuadron Cardenal" o "Cardenal" -> busca "Cardenal"
+  // "condor", "cóndor", "escuadron condor" -> regex que coincida con "Escuadrón 2 (Cóndor)"
+  let regexCondition;
+
   if (targetField === 'Escuadrón Asignado') {
-    rawValue = rawValue
+    let cleanVal = rawValue
       .replace(/^escuadr[oó]n\s*/i, '')
       .replace(/[\(\)]/g, '')
       .trim();
-  }
 
-  // Limpieza de búsqueda para ubicación:
-  // "de la zona de san diego" -> "san diego"
-  if (targetField === 'Ubicación exacta') {
-    rawValue = rawValue
+    // Mapeo de términos de escuadrones conocidos
+    const normEsc = normalizeText(cleanVal);
+    if (normEsc.includes('condor')) {
+      regexCondition = /c[oó]ndor/i;
+    } else if (normEsc.includes('cardenal')) {
+      regexCondition = /cardenal/i;
+    } else if (normEsc.includes('halcon')) {
+      regexCondition = /halc[oó]n/i;
+    } else if (normEsc.includes('aguila')) {
+      regexCondition = /[aá]guila/i;
+    } else if (/^\d+$/.test(cleanVal)) {
+      regexCondition = new RegExp(`Escuadr[oó]n\\s*${cleanVal}`, 'i');
+    } else {
+      regexCondition = new RegExp(cleanVal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    }
+  } else if (targetField === 'Ubicación exacta') {
+    let cleanLoc = rawValue
       .replace(/^(?:los\s+|las\s+|el\s+|la\s+)?(?:clientes\s+de\s+|negocios\s+de\s+|zona\s+de\s+|zona\s+|de\s+la\s+|de\s+|en\s+)/i, '')
       .trim();
-  }
 
-  // Armar expresión regular flexible
-  const tokens = rawValue.split(/\s+/).filter(t => t.length >= 2);
-  let regexCondition;
-  if (tokens.length > 1) {
-    const lookaheads = tokens.map(t => `(?=.*${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`).join('');
-    regexCondition = new RegExp(lookaheads, 'i');
-  } else if (tokens.length === 1) {
-    regexCondition = new RegExp(tokens[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    const tokens = cleanLoc.split(/\s+/).filter(t => t.length >= 3);
+    if (tokens.length > 1) {
+      const lookaheads = tokens.map(t => `(?=.*${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`).join('');
+      regexCondition = new RegExp(lookaheads, 'i');
+    } else if (tokens.length === 1) {
+      regexCondition = new RegExp(tokens[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    } else {
+      regexCondition = new RegExp(cleanLoc.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    }
   } else {
-    regexCondition = new RegExp('.*', 'i');
+    regexCondition = new RegExp(rawValue.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
   }
 
   const query = {

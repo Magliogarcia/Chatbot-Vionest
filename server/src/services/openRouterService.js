@@ -159,31 +159,33 @@ export async function generateWithFallback({ systemInstruction, prompt, isJson =
   }
 
   // 2. Probar Agente 3: Gemini Oficial de Google como respaldo
-  const agent3Number = models.length + 1;
-  const totalElapsedBeforeGemini = Date.now() - cascadeStartTime;
-  const remainingForGemini = Math.max(1000, maxTotalTimeout - totalElapsedBeforeGemini);
-  const geminiTimeout = Math.min(timeoutPerAgent, remainingForGemini);
+  if (config.gemini.apiKey) {
+    const agent3Number = models.length + 1;
+    const totalElapsedBeforeGemini = Date.now() - cascadeStartTime;
+    const remainingForGemini = Math.max(1000, maxTotalTimeout - totalElapsedBeforeGemini);
+    const geminiTimeout = Math.min(timeoutPerAgent, remainingForGemini);
 
-  console.log(`[Cascada AI] 🤖 [Agente ${agent3Number}] Google Gemini Oficial: "${config.gemini.model}" (Timeout: ${geminiTimeout / 1000}s)...`);
+    console.log(`[Cascada AI] 🤖 [Agente ${agent3Number}] Google Gemini Oficial: "${config.gemini.model}" (Timeout: ${geminiTimeout / 1000}s)...`);
 
-  try {
-    const geminiResult = await callGeminiOfficial({
-      systemInstruction,
-      prompt,
-      isJson,
-      timeoutMs: geminiTimeout
-    });
+    try {
+      const geminiResult = await callGeminiOfficial({
+        systemInstruction,
+        prompt,
+        isJson,
+        timeoutMs: geminiTimeout
+      });
 
-    console.log(`[Cascada AI] ✅ [Agente ${agent3Number}] Google Gemini oficial respondió con éxito en ${geminiResult.durationMs}ms.`);
-    return geminiResult;
-  } catch (geminiErr) {
-    failedAttempts.push({
-      agentNumber: agent3Number,
-      model: config.gemini.model,
-      reason: geminiErr.message,
-      durationMs: Date.now() - cascadeStartTime - totalElapsedBeforeGemini
-    });
-    console.warn(`[Cascada AI] ⚠️ [Agente ${agent3Number}] Gemini oficial no completó la solicitud: ${geminiErr.message}`);
+      console.log(`[Cascada AI] ✅ [Agente ${agent3Number}] Google Gemini oficial respondió con éxito en ${geminiResult.durationMs}ms.`);
+      return geminiResult;
+    } catch (geminiErr) {
+      failedAttempts.push({
+        agentNumber: agent3Number,
+        model: config.gemini.model,
+        reason: geminiErr.message,
+        durationMs: Date.now() - cascadeStartTime - totalElapsedBeforeGemini
+      });
+      console.warn(`[Cascada AI] ⚠️ [Agente ${agent3Number}] Gemini oficial no completó la solicitud: ${geminiErr.message}`);
+    }
   }
 
   const totalTime = Date.now() - cascadeStartTime;
@@ -193,59 +195,53 @@ export async function generateWithFallback({ systemInstruction, prompt, isJson =
 }
 
 /**
- * Interpreta la intención del usuario y extrae parámetros de búsqueda
+ * Interpreta la intención del usuario y extrae parámetros de búsqueda de forma precisa.
  */
 export async function parseQueryWithAI(userMessage, currentContext) {
   const systemInstruction = `
-Eres el módulo de extracción de intenciones con Inteligencia Artificial para el sistema de clientes de Vionest.
-Tu trabajo es interpretar la pregunta del empleado en español y devolver EXCLUSIVAMENTE un objeto JSON válido con los parámetros de búsqueda.
+Eres el motor de análisis y comprensión de lenguaje natural para la base de datos de clientes de Vionest.
+Tu misión es analizar el mensaje del usuario en español y extraer con máxima precisión la intención y las entidades involucradas.
 
-Campos posibles en la base de datos de clientes:
-- 'Nombre de la Empresa'
-- 'Número telefónico'
-- 'Estatus actual'
-- 'Escuadrón Asignado'
-- 'Contacto Principal'
-- 'Ubicación exacta'
-- 'Investigador Asignado'
-- 'Halcón Asignado'
-- 'URL Investigación Rastreador'
-- 'URL Análisis del Cliente'
-- 'URL Demo'
-- 'URL Repositorio'
-- 'URL Contrato'
-- 'URL Cronograma'
-- 'URL Desarrollo'
-- 'Fecha Primer Contacto'
-- 'Fecha Re-Contacto'
-- 'Fecha de Cita'
-- 'Feedback Llamada'
-- 'Feedback de la cita'
-- 'Tipo de Desarrollo'
-- 'Plan activo'
-- 'Observaciones'
-- 'Estatus de Teléfono'
+DEBES DEVOLVER EXCLUSIVAMENTE UN OBJETO JSON VÁLIDO CON ESTA ESTRUCTURA:
+{
+  "intent": "CLIENT_QUERY" | "FILTER_QUERY" | "SEARCH_BY_PHONE" | "VERIFY_PHONE" | "HELP_OR_GREETING" | "UNKNOWN",
+  "companyName": string | null,
+  "useCurrentContext": boolean,
+  "requestedField": string | null,
+  "filterField": string | null,
+  "filterValue": string | null,
+  "phoneNumber": string | null
+}
 
-Tipos de intención (intent):
-1. 'CLIENT_SEARCH': Busca una empresa por nombre o pregunta qué información hay sobre ella.
-2. 'CLIENT_FIELD_QUERY': Pregunta por un campo específico de una empresa (por ejemplo: teléfono, demo, observaciones, investigador, fecha, ubicación, agente).
-3. 'VERIFY_PHONE': Quiere verificar si un número telefónico existe o está verificado en la colección auxiliar/maestro.
-4. 'SEARCH_BY_PHONE': Busca qué cliente o empresa tiene un número telefónico dado.
-5. 'FILTER_QUERY': Busca o cuenta clientes por un filtro o criterio general. EJEMPLOS CLAVE:
-   - "cuantos clientes tenemos de la zona de san diego" -> intent: 'FILTER_QUERY', filterField: 'Ubicación exacta', filterValue: 'San Diego'
-   - "cuantos negocios estan a cargo del escuadron Cardenal" -> intent: 'FILTER_QUERY', filterField: 'Escuadrón Asignado', filterValue: 'Cardenal'
-   - "quienes estan en estatus no interesado" -> intent: 'FILTER_QUERY', filterField: 'Estatus actual', filterValue: 'No interesado'
-6. 'HELP_OR_GREETING': Saludo o pregunta sobre qué puede hacer el sistema.
-7. 'UNKNOWN': No se relaciona con clientes ni consultas de la empresa.
+REGLAS DE EXTRACCIÓN:
+1. 'CLIENT_QUERY':
+   - Si el usuario pregunta por cualquier dato de una empresa específica (ej: "donde esta ubicada Almacenadora Torgus 2016 C.A", "Cual es el feebak de la llamada de Aceite Rogil?", "cuentame de Autopartes Embragues Valero", "quien es el contacto de polar").
+   - 'companyName': Extrae ÚNICAMENTE el nombre de la empresa limpio, quitando palabras de relleno ("donde esta ubicada", "cual es el feedback de la llamada de", "dime de", etc.). Ejemplos: "Aceite Rogil", "Almacenadora Torgus 2016 C.A", "Let's Talk".
+   - 'requestedField': Si preguntó por un campo específico, anota cuál: 'Ubicación exacta', 'Feedback Llamada', 'Número telefónico', 'Escuadrón Asignado', 'Halcón Asignado', 'Investigador Asignado', 'Contacto Principal', 'instagram', 'Estatus actual', 'URL Demo', 'Observaciones', etc.
+   - Si no menciona empresa pero dice "su ubicacion", "su telefono", "y que agente tiene?", y hay cliente en contexto: pon "useCurrentContext": true y companyName: null.
 
-Contexto actual:
-${currentContext ? `Cliente seleccionado actualmente: ID "${currentContext.clientId}", Nombre "${currentContext.clientName}"` : 'Ningún cliente seleccionado actualmente.'}
+2. 'FILTER_QUERY':
+   - Si el usuario pregunta por cantidades, listados o filtros generales de clientes.
+   - Ejemplos de Escuadrón:
+     * "Cuantos negocios tiene a cargo el escuadron condor" -> filterField: "Escuadrón Asignado", filterValue: "Cóndor"
+     * "que empresas estan en el escuadron cardenal" -> filterField: "Escuadrón Asignado", filterValue: "Cardenal"
+   - Ejemplos de Ubicación / Zona:
+     * "cuantos clientes tenemos de la zona de san diego" -> filterField: "Ubicación exacta", filterValue: "San Diego"
+     * "empresas en valencia" -> filterField: "Ubicación exacta", filterValue: "Valencia"
+     * "clientes en naguanagua" -> filterField: "Ubicación exacta", filterValue: "Naguanagua"
+   - Ejemplos de Estatus:
+     * "cuales clientes tienen estatus no interesado" -> filterField: "Estatus actual", filterValue: "No interesado"
 
-Reglas:
-- Sé sumamente permisivo. Si el usuario pregunta por zonas, municipios o ciudades (ej: "San Diego", "Valencia", "Naguanagua"), usa intent: 'FILTER_QUERY', filterField: 'Ubicación exacta' y en filterValue pon solo el nombre del lugar.
-- Si pregunta por un escuadrón (ej: "escuadron Cardenal", "escuadrón 4"), en filterValue pon la palabra clave principal (ej: "Cardenal", "4").
-- Si el usuario dice "su...", "del cliente", y hay cliente en contexto, marca "useCurrentContext": true.
-- Devuelve SOLO el JSON sin texto extra ni etiquetas markdown.
+3. 'SEARCH_BY_PHONE' o 'VERIFY_PHONE':
+   - Si proporciona un número de teléfono.
+
+4. 'HELP_OR_GREETING':
+   - Saludos o preguntas generales ("hola", "buenas tardes", "que puedes hacer").
+
+Contexto actual de la conversación:
+${currentContext ? `Cliente activo: "${currentContext.clientName}" (ID: ${currentContext.clientId})` : 'Ningún cliente en contexto.'}
+
+Responde ÚNICAMENTE el objeto JSON.
 `;
 
   try {
@@ -271,27 +267,29 @@ Reglas:
  */
 export async function draftResponseWithAI({ userMessage, retrievedData, queryType, currentClientName }) {
   const systemInstruction = `
-Eres el asistente virtual de Inteligencia Artificial interno de Vionest.
-Tu función es responder las dudas y preguntas del personal sobre la base de datos de clientes de manera inteligente, concisa, natural, comprensiva y profesional.
+Eres el asistente virtual con Inteligencia Artificial interno de Vionest para el personal autorizado.
+Tu rol es responder a las preguntas de los empleados sobre la base de datos de clientes de manera inteligente, concisa, natural, conversacional y 100% verídica basada en los datos provistos de MongoDB.
 
-DIRECTRICES FUNDAMENTALES:
-1. SÉ CONCISO Y DIRECTO: Ve al grano. Si el usuario pregunta por un dato concreto (por ejemplo, ubicación, teléfono, escuadrón, agente, demo o recuento), responde directamente lo solicitado con claridad.
-2. PERMISIVO CON CONTEOS Y FILTROS: Si el usuario pregunta "cuántos clientes..." o "qué negocios...", indica el total exacto encontrado en la base de datos y lista los nombres o detalles más relevantes con cortesía.
-3. BASADO 100% EN HECHOS: Usa exclusivamente la información provista en los datos de MongoDB. No inventes datos.
-4. ENLACES Y URLs: Si hay enlaces relevantes (Instagram, demo, investigación), colócalos en formato markdown limpio [Nombre del recurso](URL).
-5. CAMPOS NO ENCONTRADOS: Si un dato no figura en la base de datos, indícalo amablemente sin rodeos.
-6. IDIOMA: Español claro y profesional.
+DIRECTRICES:
+1. RESPONDE CON EXACTITUD A LO QUE PREGUNTARON:
+   - Si el usuario preguntó por la ubicación, dile directamente dónde queda ubicado.
+   - Si preguntó por el feedback de la llamada, dale el feedback registrado de forma natural.
+   - Si preguntó cuántos clientes/negocios tiene a cargo un escuadrón o zona, dale el número total exacto y menciona los clientes encontrados.
+   - Si preguntó por la red social o Instagram, dale el enlace correspondiente [Instagram](URL).
+2. NO USES PLANTILLAS PREVIAS NI VOLCADOS EN BRUTO: Habla con naturalidad y profesionalismo.
+3. BASADO 100% EN HECHOS: Usa exclusivamente la información provista en los datos de MongoDB. Si un dato no figura, dilo con naturalidad sin inventar.
+4. IDIOMA: Español fluido y profesional.
 `;
 
   const prompt = `
 Pregunta del empleado: "${userMessage}"
-Contexto de la consulta: ${queryType}
+Contexto: ${queryType}
 Empresa en contexto: ${currentClientName || 'Ninguna'}
 
-DATOS DE MONGODB:
+DATOS REALES DE MONGODB:
 ${JSON.stringify(retrievedData, null, 2)}
 
-Responde al empleado de forma concisa, inteligente y contextualizada:`;
+Redacta tu respuesta concisa y profesional para el empleado:`;
 
   const res = await generateWithFallback({
     systemInstruction,
