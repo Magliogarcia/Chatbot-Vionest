@@ -9,8 +9,8 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const defaultModels = [
-  'nvidia/nemotron-3.5-lightning:free',
-  'google/gemma-4-31b-it:free',
+  'nvidia/nemotron-3-ultra-550b-a55b:free',
+  'dots-studio/dots-3-note-preview:free',
   'google/gemma-4-26b-a4b-it:free'
 ];
 
@@ -36,7 +36,7 @@ export const config = {
   openRouter: {
     apiKey: process.env.OPENROUTER_API_KEY ? process.env.OPENROUTER_API_KEY.trim() : '',
     models: parsedModels.length > 0 ? parsedModels : defaultModels,
-    timeoutMs: parseInt(process.env.OPENROUTER_TIMEOUT_MS || '10000', 10),
+    timeoutMs: parseInt(process.env.OPENROUTER_TIMEOUT_MS || '12000', 10),
     maxTotalTimeoutMs: 40000
   },
   // Mantener fallback de compatibilidad opcional
