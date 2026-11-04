@@ -101,7 +101,6 @@ export async function searchClientsByName(companyName) {
     }
     return { doc, score, matchedSigCount };
   })
-  // Exigir umbral mínimo de coincidencia (al menos 25 puntos y al menos 1 término significativo)
   .filter(item => item.score >= 25 && item.matchedSigCount > 0)
   .sort((a, b) => b.score - a.score);
 
@@ -127,7 +126,6 @@ export async function getClientById(clientId) {
   try {
     queryId = new ObjectId(clientId);
   } catch {
-    // Si no es ObjectId válido
     return null;
   }
   return await col.findOne({ _id: queryId });
@@ -141,8 +139,7 @@ export async function searchClientByPhone(phoneQuery) {
   const digits = cleanPhoneNumber(phoneQuery);
   if (!digits || digits.length < 5) return [];
 
-  // Buscar coincidencia directa de subcadena en 'Número telefónico'
-  const regex = new RegExp(digits.slice(-7)); // últimos 7 dígitos o patrón
+  const regex = new RegExp(digits.slice(-7));
   const results = await col.find({
     $or: [
       { 'Número telefónico': { $regex: new RegExp(phoneQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } },
@@ -155,7 +152,6 @@ export async function searchClientByPhone(phoneQuery) {
 
 /**
  * Verificación exhaustiva de un número de teléfono en ambas colecciones
- * Retorna el análisis requerido por la sección 4 de las instrucciones.
  */
 export async function verifyPhoneNumber(phone) {
   const clean = cleanPhoneNumber(phone);
@@ -173,8 +169,6 @@ export async function verifyPhoneNumber(phone) {
   const clientesCol = getClientesCollection();
   const verifCol = getVerificacionCollection();
 
-  // Buscar en clientes_telefonos_verificacion
-  // Los números en la colección pueden ser "0414-4247004" o "04244236438"
   const suffix = clean.slice(-7);
   const regexSuffix = new RegExp(suffix);
 
@@ -185,7 +179,6 @@ export async function verifyPhoneNumber(phone) {
     ]
   }).limit(5).toArray();
 
-  // Buscar en clientes (maestro)
   const maestroMatches = await clientesCol.find({
     $or: [
       { 'Número telefónico': { $regex: new RegExp(phone.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } },
@@ -232,34 +225,69 @@ export async function verifyPhoneNumber(phone) {
 }
 
 /**
- * Consulta de clientes por filtros predeterminados de solo lectura
- * (Estatus actual, Escuadrón Asignado, Investigador Asignado, Halcón Asignado, Contacto Principal)
+ * Consulta de clientes por filtros dinámicos y permisivos sobre MongoDB.
+ * Soporta cualquier campo de la base de datos: Ubicación exacta, Escuadrón Asignado,
+ * Estatus actual, Investigador Asignado, Halcón Asignado, Observaciones, etc.
  */
-export async function queryClientsByFilter({ filterField, filterValue, limit = 15 }) {
-  // Lista blanca estricta de campos permitidos para consulta filtrada
-  const ALLOWED_FIELDS = [
-    'Estatus actual',
-    'Escuadrón Asignado',
-    'Investigador Asignado',
-    'Halcón Asignado',
-    'Contacto Principal',
-    'Tipo de Desarrollo',
-    'Plan activo'
-  ];
+export async function queryClientsByFilter({ filterField, filterValue, limit = 25 }) {
+  const col = getClientesCollection();
+  let targetField = filterField || 'Ubicación exacta';
+  let rawValue = String(filterValue || '').trim();
 
-  if (!ALLOWED_FIELDS.includes(filterField)) {
-    throw new Error(`Campo de filtro no permitido: ${filterField}`);
+  // Mapeo amigable de nombres de campos
+  const normField = normalizeText(targetField);
+  if (normField.includes('ubicacion') || normField.includes('zona') || normField.includes('ciudad') || normField.includes('estado') || normField.includes('direccion')) {
+    targetField = 'Ubicación exacta';
+  } else if (normField.includes('escuadron')) {
+    targetField = 'Escuadrón Asignado';
+  } else if (normField.includes('estatus') || normField.includes('estado')) {
+    targetField = 'Estatus actual';
+  } else if (normField.includes('halcon') || normField.includes('agente')) {
+    targetField = 'Halcón Asignado';
+  } else if (normField.includes('investigador')) {
+    targetField = 'Investigador Asignado';
+  } else if (normField.includes('contacto')) {
+    targetField = 'Contacto Principal';
+  } else if (normField.includes('observacion')) {
+    targetField = 'Observaciones';
   }
 
-  const col = getClientesCollection();
-  const escaped = String(filterValue).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // Limpieza y refinamiento de búsqueda para escuadrón:
+  // "escuadron Cardenal" o "Cardenal" -> busca "Cardenal"
+  if (targetField === 'Escuadrón Asignado') {
+    rawValue = rawValue
+      .replace(/^escuadr[oó]n\s*/i, '')
+      .replace(/[\(\)]/g, '')
+      .trim();
+  }
+
+  // Limpieza de búsqueda para ubicación:
+  // "de la zona de san diego" -> "san diego"
+  if (targetField === 'Ubicación exacta') {
+    rawValue = rawValue
+      .replace(/^(?:los\s+|las\s+|el\s+|la\s+)?(?:clientes\s+de\s+|negocios\s+de\s+|zona\s+de\s+|zona\s+|de\s+la\s+|de\s+|en\s+)/i, '')
+      .trim();
+  }
+
+  // Armar expresión regular flexible
+  const tokens = rawValue.split(/\s+/).filter(t => t.length >= 2);
+  let regexCondition;
+  if (tokens.length > 1) {
+    const lookaheads = tokens.map(t => `(?=.*${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`).join('');
+    regexCondition = new RegExp(lookaheads, 'i');
+  } else if (tokens.length === 1) {
+    regexCondition = new RegExp(tokens[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+  } else {
+    regexCondition = new RegExp('.*', 'i');
+  }
+
   const query = {
-    [filterField]: { $regex: new RegExp(escaped, 'i') }
+    [targetField]: { $regex: regexCondition }
   };
 
   const total = await col.countDocuments(query);
   const docs = await col.find(query)
-    .limit(Math.min(limit, 30))
+    .limit(Math.min(limit, 50))
     .project({
       _id: 1,
       'Nombre de la Empresa': 1,
@@ -267,14 +295,22 @@ export async function queryClientsByFilter({ filterField, filterValue, limit = 1
       'Escuadrón Asignado': 1,
       'Número telefónico': 1,
       'Contacto Principal': 1,
+      'Ubicación exacta': 1,
       'Investigador Asignado': 1,
-      'Halcón Asignado': 1
+      'Halcón Asignado': 1,
+      'Observaciones': 1,
+      'Feedback Llamada': 1,
+      'instagram': 1,
+      'Correo electrónico': 1
     })
     .toArray();
 
   return {
     total,
     returned: docs.length,
+    criterioBuscado: `${targetField}: "${rawValue}"`,
+    campoConsultado: targetField,
+    valorConsultado: rawValue,
     results: docs.map(d => ({
       _id: d._id.toString(),
       nombreEmpresa: d['Nombre de la Empresa'],
@@ -282,8 +318,10 @@ export async function queryClientsByFilter({ filterField, filterValue, limit = 1
       escuadron: d['Escuadrón Asignado'] || 'Sin escuadrón',
       telefono: d['Número telefónico'] || 'Sin teléfono',
       contacto: d['Contacto Principal'] || 'Sin contacto',
+      ubicacion: d['Ubicación exacta'] || 'Sin ubicación',
       investigador: d['Investigador Asignado'] || '',
-      halcon: d['Halcón Asignado'] || ''
+      halcon: d['Halcón Asignado'] || '',
+      observaciones: d['Observaciones'] || ''
     }))
   };
 }

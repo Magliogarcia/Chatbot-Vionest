@@ -73,18 +73,35 @@ export function parseDeterministicQuery(message, currentContext) {
     };
   }
 
-  // 4. Filtro por Escuadrón
-  const escuadronMatch = message.match(/escuadr[oó]n\s*([0-9a-zA-Z\s\(\)]+)/i);
+  // 4. Filtro por Escuadrón (ej: "a cargo del escuadron Cardenal", "escuadron 2", "del escuadron Condor")
+  const escuadronMatch = message.match(/escuadr[oó]n\s*([0-9a-zA-ZáéíóúÁÉÍÓÚ\s\(\)]+)/i);
   if (escuadronMatch) {
-    const rawVal = escuadronMatch[0].trim();
+    let cleanVal = escuadronMatch[1]
+      .replace(/[\(\)]/g, '')
+      .replace(/^(?:asignado|cargo|del|de|al)\s+/i, '')
+      .trim();
+    // Si quedó algo como "Cardenal", "4", "2 Cóndor"
     return {
       intent: 'FILTER_QUERY',
       filterField: 'Escuadrón Asignado',
-      filterValue: rawVal
+      filterValue: cleanVal || escuadronMatch[0].trim()
     };
   }
 
-  // 5. Filtro por Estatus
+  // 5. Filtro por Ubicación o Zona (ej: "cuantos clientes de la zona de san diego", "en valencia", "ubicados en naguanagua")
+  const locationMatch = message.match(/(?:zona\s+de\s+|zona\s+|ubicad[oa]s?\s+en\s+|en\s+la\s+zona\s+de\s+|de\s+la\s+zona\s+de\s+|clientes\s+de\s+|negocios\s+de\s+)([a-zA-ZáéíóúÁÉÍÓÚ\s]+)/i);
+  if (locationMatch && (norm.includes('zona') || norm.includes('ubicacion') || norm.includes('cuantos') || norm.includes('cuales') || norm.includes('que clientes'))) {
+    const locVal = locationMatch[1].trim();
+    if (locVal.length >= 3 && !['la empresa', 'un cliente', 'esta empresa'].includes(locVal.toLowerCase())) {
+      return {
+        intent: 'FILTER_QUERY',
+        filterField: 'Ubicación exacta',
+        filterValue: locVal
+      };
+    }
+  }
+
+  // 6. Filtro por Estatus
   const statusKeywords = [
     'no interesado', 'no interesada', 'no interesados',
     'contactado', 'contactada',
@@ -93,8 +110,7 @@ export function parseDeterministicQuery(message, currentContext) {
   ];
   for (const st of statusKeywords) {
     if (norm.includes(normalizeText(st))) {
-      // Verificar si pregunta por clientes con ese estatus
-      if (norm.includes('clientes') || norm.includes('empresas') || norm.includes('quienes') || norm.includes('que tienen')) {
+      if (norm.includes('clientes') || norm.includes('empresas') || norm.includes('quienes') || norm.includes('que tienen') || norm.includes('cuantos')) {
         return {
           intent: 'FILTER_QUERY',
           filterField: 'Estatus actual',
@@ -104,14 +120,15 @@ export function parseDeterministicQuery(message, currentContext) {
     }
   }
 
-  // 6. Consultas sobre el cliente actualmente en contexto ("su telefono", "la demo", "observaciones")
+  // 7. Consultas sobre el cliente actualmente en contexto ("su telefono", "la demo", "observaciones", "ubicacion")
   const contextIndicators = ['su ', 'de esa empresa', 'este cliente', 'esa empresa', 'del cliente', 'ultimo contacto', 'primer contacto'];
   const hasContextRef = contextIndicators.some(ci => norm.includes(normalizeText(ci)));
 
   if (currentContext && (hasContextRef || !norm.includes('empresa') && (
     norm.includes('telefono') || norm.includes('demo') || norm.includes('contacto') ||
     norm.includes('investigador') || norm.includes('observaciones') || norm.includes('estatus') ||
-    norm.includes('ubicacion') || norm.includes('feedback') || norm.includes('contrato')
+    norm.includes('ubicacion') || norm.includes('feedback') || norm.includes('contrato') ||
+    norm.includes('red social') || norm.includes('instagram') || norm.includes('agente')
   ))) {
     return {
       intent: 'CLIENT_FIELD_QUERY',
@@ -120,8 +137,8 @@ export function parseDeterministicQuery(message, currentContext) {
     };
   }
 
-  // 7. Búsqueda explícita de empresa: "¿Qué información tenemos de X?", "Busca la empresa X", "Información de X"
-  const searchCompanyMatch = message.match(/(?:informaci[oó]n\s+(?:tenemos\s+)?(?:de|sobre)|busca(?:r)?\s+(?:a|la\s+empresa)?|datos\s+de|empresa)\s+([^\?\.\n]+)/i);
+  // 8. Búsqueda explícita de empresa: "Cuentame sobre X", "Qué información tenemos de X?", "Busca la empresa X"
+  const searchCompanyMatch = message.match(/(?:cuentame\s+sobre|informaci[oó]n\s+(?:tenemos\s+)?(?:de|sobre)|busca(?:r)?\s+(?:a|la\s+empresa)?|datos\s+de|empresa)\s+([^\?\.\n]+)/i);
   if (searchCompanyMatch) {
     const extractedName = searchCompanyMatch[1].trim();
     if (extractedName.length > 2) {
@@ -132,7 +149,7 @@ export function parseDeterministicQuery(message, currentContext) {
     }
   }
 
-  // Si no encaja exactamente, si parece un nombre de empresa directo:
+  // 9. Si parece un nombre de empresa directo:
   if (message.length > 3 && !message.includes('?')) {
     return {
       intent: 'CLIENT_SEARCH',
@@ -151,6 +168,7 @@ function extractRequestedField(norm) {
   if (norm.includes('demo')) return 'URL Demo';
   if (norm.includes('repositorio')) return 'URL Repositorio';
   if (norm.includes('investigador')) return 'Investigador Asignado';
+  if (norm.includes('halcon') || norm.includes('agente asignado') || norm.includes('agente')) return 'Halcón Asignado';
   if (norm.includes('observaciones')) return 'Observaciones';
   if (norm.includes('estatus')) return 'Estatus actual';
   if (norm.includes('escuadron')) return 'Escuadrón Asignado';
@@ -161,7 +179,8 @@ function extractRequestedField(norm) {
   if (norm.includes('feedback llamada')) return 'Feedback Llamada';
   if (norm.includes('feedback cita') || norm.includes('feedback de la cita')) return 'Feedback de la cita';
   if (norm.includes('ubicacion')) return 'Ubicación exacta';
-  if (norm.includes('instagram')) return 'instagram';
+  if (norm.includes('instagram') || norm.includes('red social') || norm.includes('redes')) return 'instagram';
+  if (norm.includes('correo') || norm.includes('email')) return 'Correo electrónico';
   if (norm.includes('contrato')) return 'URL Contrato';
   return null;
 }
@@ -172,7 +191,6 @@ function extractRequestedField(norm) {
 export function formatClientDetailsResponse(clientDoc, requestedField = null) {
   const nombre = clientDoc['Nombre de la Empresa'] || 'Sin nombre registrado';
 
-  // Si el usuario pidió un campo específico
   if (requestedField) {
     const val = clientDoc[requestedField];
     if (val !== undefined && val !== null && String(val).trim() !== '') {
@@ -182,7 +200,6 @@ export function formatClientDetailsResponse(clientDoc, requestedField = null) {
     }
   }
 
-  // Resumen general del cliente
   const lines = [
     `### Información de **${nombre}**`,
     `- **Estatus actual**: ${clientDoc['Estatus actual'] || 'No especificado'}`,
@@ -211,8 +228,7 @@ export function formatClientDetailsResponse(clientDoc, requestedField = null) {
     lines.push(`- **Observaciones**: ${clientDoc['Observaciones']}`);
   }
 
-  lines.push('\n_Puedes consultar cualquier otro campo específico (ej: demo, llamadas, contrato, investigador) de este cliente._');
-
+  lines.push('\n_Puedes consultar cualquier otro campo específico de este cliente._');
   return lines.join('\n');
 }
 

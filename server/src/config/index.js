@@ -9,7 +9,6 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const defaultModels = [
-  'nvidia/nemotron-3-ultra-550b-a55b:free',
   'dots-studio/dots-3-note-preview:free',
   'google/gemma-4-26b-a4b-it:free'
 ];
@@ -39,9 +38,8 @@ export const config = {
     timeoutMs: parseInt(process.env.OPENROUTER_TIMEOUT_MS || '12000', 10),
     maxTotalTimeoutMs: 40000
   },
-  // Mantener fallback de compatibilidad opcional
   gemini: {
-    apiKey: process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.trim() : '',
+    apiKey: (process.env.GEMINI_API_KEY || '').trim(),
     model: process.env.GEMINI_MODEL || 'gemini-3.8-flash'
   }
 };

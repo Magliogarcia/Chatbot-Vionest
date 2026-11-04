@@ -1,11 +1,12 @@
 import { config } from '../config/index.js';
+import { GoogleGenAI } from '@google/genai';
 
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 
 /**
- * Realiza una llamada a un modelo específico con timeout estricto mediante AbortController.
+ * Realiza una llamada a un modelo de OpenRouter con timeout estricto mediante AbortController.
  */
-async function callSingleModel({ model, systemInstruction, prompt, isJson, timeoutMs }) {
+async function callOpenRouterModel({ model, systemInstruction, prompt, isJson, timeoutMs }) {
   const controller = new AbortController();
   const timer = setTimeout(() => {
     controller.abort(new Error(`Timeout de ${timeoutMs / 1000}s excedido para ${model}`));
@@ -71,64 +72,122 @@ async function callSingleModel({ model, systemInstruction, prompt, isJson, timeo
 }
 
 /**
- * Ejecuta la llamada en cascada secuencial (Fallback):
- * 1. Intenta con Agente 1 (Timeout 10s).
- * 2. Si falla o tarda más de 10s, pasa a Agente 2.
- * 3. Si falla o tarda más de 10s, pasa a Agente 3.
- * Si pasan 40s en total sin respuesta de ningún agente, aborta con aviso de diagnóstico.
+ * Realiza una llamada a Gemini Oficial (Google Gen AI) como Agente de Respaldo 3
  */
-export async function generateWithFallback({ systemInstruction, prompt, isJson = false }) {
-  if (!config.openRouter.apiKey) {
-    console.warn('[OpenRouter] No se ha configurado OPENROUTER_API_KEY. Operando en modo determinista.');
-    return null;
+async function callGeminiOfficial({ systemInstruction, prompt, isJson, timeoutMs }) {
+  if (!config.gemini.apiKey) {
+    throw new Error('GEMINI_API_KEY no configurada');
   }
 
+  const startTime = Date.now();
+  const ai = new GoogleGenAI({ apiKey: config.gemini.apiKey });
+  const modelName = config.gemini.model || 'gemini-3.8-flash';
+
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error(`Timeout de ${timeoutMs / 1000}s excedido para ${modelName}`)), timeoutMs);
+  });
+
+  const fullPrompt = `${systemInstruction}\n\n${prompt}`;
+  
+  const generatePromise = ai.models.generateContent({
+    model: modelName,
+    contents: fullPrompt,
+    config: {
+      temperature: isJson ? 0.1 : 0.4,
+      ...(isJson ? { responseMimeType: 'application/json' } : {})
+    }
+  });
+
+  const response = await Promise.race([generatePromise, timeoutPromise]);
+  const text = response?.text;
+
+  if (!text) {
+    throw new Error('Respuesta vacía de Gemini oficial');
+  }
+
+  const durationMs = Date.now() - startTime;
+  return { text: text.trim(), modelUsed: `google/${modelName} (oficial)`, durationMs };
+}
+
+/**
+ * Ejecuta la llamada en cascada secuencial (Fallback):
+ * 1. Agente 1: dots-studio/dots-3-note-preview:free (OpenRouter)
+ * 2. Agente 2: google/gemma-4-26b-a4b-it:free (OpenRouter)
+ * 3. Agente 3: gemini-3.8-flash oficial de Google (SDK oficial)
+ */
+export async function generateWithFallback({ systemInstruction, prompt, isJson = false }) {
   const models = config.openRouter.models;
-  const timeoutPerAgent = config.openRouter.timeoutMs || 10000;
+  const timeoutPerAgent = config.openRouter.timeoutMs || 12000;
   const maxTotalTimeout = config.openRouter.maxTotalTimeoutMs || 40000;
   const cascadeStartTime = Date.now();
 
   const failedAttempts = [];
 
-  for (let i = 0; i < models.length; i++) {
-    const model = models[i];
-    const totalElapsed = Date.now() - cascadeStartTime;
+  // 1. Probar modelos de OpenRouter (Agente 1 y Agente 2)
+  if (config.openRouter.apiKey) {
+    for (let i = 0; i < models.length; i++) {
+      const model = models[i];
+      const totalElapsed = Date.now() - cascadeStartTime;
 
-    // Verificar si el tiempo total acumulado ya alcanzó o superó los 40 segundos
-    if (totalElapsed >= maxTotalTimeout) {
-      console.error(`[OpenRouter] ⚠️ Tiempo total límite excedido (${Math.round(totalElapsed / 1000)}s >= ${maxTotalTimeout / 1000}s). Deteniendo agentes.`);
-      break;
-    }
+      if (totalElapsed >= maxTotalTimeout) {
+        console.error(`[Cascada AI] ⚠️ Tiempo total límite excedido (${Math.round(totalElapsed / 1000)}s >= ${maxTotalTimeout / 1000}s).`);
+        break;
+      }
 
-    // Calcular el tiempo restante disponible para este agente sin exceder el tope total de 40s
-    const remainingTime = maxTotalTimeout - totalElapsed;
-    const currentTimeout = Math.min(timeoutPerAgent, remainingTime);
+      const remainingTime = maxTotalTimeout - totalElapsed;
+      const currentTimeout = Math.min(timeoutPerAgent, remainingTime);
 
-    console.log(`[OpenRouter] 🤖 [Agente ${i + 1}/${models.length}] Probando modelo: "${model}" (Timeout: ${currentTimeout / 1000}s)...`);
+      console.log(`[Cascada AI] 🤖 [Agente ${i + 1}/${models.length + 1}] OpenRouter: "${model}" (Timeout: ${currentTimeout / 1000}s)...`);
 
-    try {
-      const result = await callSingleModel({
-        model,
-        systemInstruction,
-        prompt,
-        isJson,
-        timeoutMs: currentTimeout
-      });
+      try {
+        const result = await callOpenRouterModel({
+          model,
+          systemInstruction,
+          prompt,
+          isJson,
+          timeoutMs: currentTimeout
+        });
 
-      console.log(`[OpenRouter] ✅ [Agente ${i + 1}] "${model}" respondió con éxito en ${result.durationMs}ms.`);
-      return result;
-    } catch (err) {
-      failedAttempts.push({ agentNumber: i + 1, model, reason: err.message, durationMs: err.durationMs });
-      console.warn(`[OpenRouter] ⚠️ [Agente ${i + 1}] "${model}" no completó la solicitud (${err.durationMs}ms): ${err.message}.`);
-
-      if (i < models.length - 1) {
-        console.log(`[OpenRouter] 🔄 Activando siguiente agente de respaldo en cascada...`);
+        console.log(`[Cascada AI] ✅ [Agente ${i + 1}] "${model}" respondió con éxito en ${result.durationMs}ms.`);
+        return result;
+      } catch (err) {
+        failedAttempts.push({ agentNumber: i + 1, model, reason: err.message, durationMs: err.durationMs });
+        console.warn(`[Cascada AI] ⚠️ [Agente ${i + 1}] "${model}" falló (${err.durationMs}ms): ${err.message}.`);
+        console.log(`[Cascada AI] 🔄 Activando siguiente agente en cascada...`);
       }
     }
   }
 
+  // 2. Probar Agente 3: Gemini Oficial de Google como respaldo
+  const agent3Number = models.length + 1;
+  const totalElapsedBeforeGemini = Date.now() - cascadeStartTime;
+  const remainingForGemini = Math.max(1000, maxTotalTimeout - totalElapsedBeforeGemini);
+  const geminiTimeout = Math.min(timeoutPerAgent, remainingForGemini);
+
+  console.log(`[Cascada AI] 🤖 [Agente ${agent3Number}] Google Gemini Oficial: "${config.gemini.model}" (Timeout: ${geminiTimeout / 1000}s)...`);
+
+  try {
+    const geminiResult = await callGeminiOfficial({
+      systemInstruction,
+      prompt,
+      isJson,
+      timeoutMs: geminiTimeout
+    });
+
+    console.log(`[Cascada AI] ✅ [Agente ${agent3Number}] Google Gemini oficial respondió con éxito en ${geminiResult.durationMs}ms.`);
+    return geminiResult;
+  } catch (geminiErr) {
+    failedAttempts.push({
+      agentNumber: agent3Number,
+      model: config.gemini.model,
+      reason: geminiErr.message,
+      durationMs: Date.now() - cascadeStartTime - totalElapsedBeforeGemini
+    });
+    console.warn(`[Cascada AI] ⚠️ [Agente ${agent3Number}] Gemini oficial no completó la solicitud: ${geminiErr.message}`);
+  }
+
   const totalTime = Date.now() - cascadeStartTime;
-  console.error(`[OpenRouter] ❌ Ningún agente de IA completó la respuesta tras ${Math.round(totalTime / 1000)}s. Resumen de intentos:`, failedAttempts);
+  console.error(`[Cascada AI] ❌ Ningún agente de IA completó la respuesta tras ${Math.round(totalTime / 1000)}s. Resumen:`, failedAttempts);
 
   return null;
 }
@@ -138,7 +197,7 @@ export async function generateWithFallback({ systemInstruction, prompt, isJson =
  */
 export async function parseQueryWithAI(userMessage, currentContext) {
   const systemInstruction = `
-Eres el módulo de extracción de intenciones con Inteligencia Artificial para el sistema de base de datos de clientes de Vionest.
+Eres el módulo de extracción de intenciones con Inteligencia Artificial para el sistema de clientes de Vionest.
 Tu trabajo es interpretar la pregunta del empleado en español y devolver EXCLUSIVAMENTE un objeto JSON válido con los parámetros de búsqueda.
 
 Campos posibles en la base de datos de clientes:
@@ -167,15 +226,15 @@ Campos posibles en la base de datos de clientes:
 - 'Observaciones'
 - 'Estatus de Teléfono'
 
-Colección auxiliar:
-- 'clientes_telefonos_verificacion' (para verificar si un número está registrado o verificado)
-
 Tipos de intención (intent):
 1. 'CLIENT_SEARCH': Busca una empresa por nombre o pregunta qué información hay sobre ella.
-2. 'CLIENT_FIELD_QUERY': Pregunta por un campo específico de una empresa (por ejemplo: teléfono, demo, observaciones, investigador, fecha).
+2. 'CLIENT_FIELD_QUERY': Pregunta por un campo específico de una empresa (por ejemplo: teléfono, demo, observaciones, investigador, fecha, ubicación, agente).
 3. 'VERIFY_PHONE': Quiere verificar si un número telefónico existe o está verificado en la colección auxiliar/maestro.
 4. 'SEARCH_BY_PHONE': Busca qué cliente o empresa tiene un número telefónico dado.
-5. 'FILTER_QUERY': Busca empresas por un filtro general (ej: por Escuadrón, por Estatus actual, o por Investigador).
+5. 'FILTER_QUERY': Busca o cuenta clientes por un filtro o criterio general. EJEMPLOS CLAVE:
+   - "cuantos clientes tenemos de la zona de san diego" -> intent: 'FILTER_QUERY', filterField: 'Ubicación exacta', filterValue: 'San Diego'
+   - "cuantos negocios estan a cargo del escuadron Cardenal" -> intent: 'FILTER_QUERY', filterField: 'Escuadrón Asignado', filterValue: 'Cardenal'
+   - "quienes estan en estatus no interesado" -> intent: 'FILTER_QUERY', filterField: 'Estatus actual', filterValue: 'No interesado'
 6. 'HELP_OR_GREETING': Saludo o pregunta sobre qué puede hacer el sistema.
 7. 'UNKNOWN': No se relaciona con clientes ni consultas de la empresa.
 
@@ -183,11 +242,10 @@ Contexto actual:
 ${currentContext ? `Cliente seleccionado actualmente: ID "${currentContext.clientId}", Nombre "${currentContext.clientName}"` : 'Ningún cliente seleccionado actualmente.'}
 
 Reglas:
-- Si el usuario dice "esa empresa", "este cliente", "su demo", "su teléfono", o pronombres relativos, y hay un cliente en contexto, marca "useCurrentContext": true.
-- Si menciona un nombre de empresa nuevo o explícito, extrae "companyName".
-- Si menciona un número telefónico, extrae "phoneNumber".
-- Si es un filtro general (ej: "¿Qué empresas están en el Escuadrón 2?"), marca intent 'FILTER_QUERY', filterField ('Escuadrón Asignado', 'Estatus actual', etc.) y filterValue.
-- Devuelve SOLO el JSON sin texto o comentarios adicionales.
+- Sé sumamente permisivo. Si el usuario pregunta por zonas, municipios o ciudades (ej: "San Diego", "Valencia", "Naguanagua"), usa intent: 'FILTER_QUERY', filterField: 'Ubicación exacta' y en filterValue pon solo el nombre del lugar.
+- Si pregunta por un escuadrón (ej: "escuadron Cardenal", "escuadrón 4"), en filterValue pon la palabra clave principal (ej: "Cardenal", "4").
+- Si el usuario dice "su...", "del cliente", y hay cliente en contexto, marca "useCurrentContext": true.
+- Devuelve SOLO el JSON sin texto extra ni etiquetas markdown.
 `;
 
   try {
@@ -199,11 +257,10 @@ Reglas:
 
     if (!res || !res.text) return null;
 
-    // Limpiar posibles bloques markdown si el modelo los incluyó
     let cleaned = res.text.replace(/```json/gi, '').replace(/```/g, '').trim();
     return JSON.parse(cleaned);
   } catch (err) {
-    console.warn('[OpenRouter] No se pudo parsear JSON de intención:', err.message);
+    console.warn('[AI Intent Parser] No se pudo parsear JSON:', err.message);
     return null;
   }
 }
@@ -215,15 +272,15 @@ Reglas:
 export async function draftResponseWithAI({ userMessage, retrievedData, queryType, currentClientName }) {
   const systemInstruction = `
 Eres el asistente virtual de Inteligencia Artificial interno de Vionest.
-Tu función es responder las dudas y preguntas del personal sobre la base de datos de clientes de manera inteligente, concisa, natural y profesional.
+Tu función es responder las dudas y preguntas del personal sobre la base de datos de clientes de manera inteligente, concisa, natural, comprensiva y profesional.
 
 DIRECTRICES FUNDAMENTALES:
-1. SÉ CONCISO Y DIRECTO: Ve directo al grano. Si el usuario pregunta por un dato concreto (por ejemplo, "¿cuál es la ubicación?", "¿cuál es su teléfono?", "¿tiene demo?"), responde directamente ese dato con su contexto necesario, sin soltar un listado interminable de todos los campos que no pidió.
-2. NO USES PLANTILLAS NI FORMATOS MECÁNICOS EN BRUTO: Habla como un colega inteligente y servicial, nunca como un volcado de base de datos crudo.
-3. BASADO 100% EN HECHOS: Usa exclusivamente la información provista en los datos de MongoDB. No inventes clientes, números ni enlaces.
-4. ENLACES Y URLs: Si hay enlaces relevantes a la pregunta (como demo, repositorio, investigación), colócalos en formato markdown limpio [Nombre del recurso](URL).
-5. CAMPOS NO ENCONTRADOS: Si el usuario pregunta por un dato que no está registrado en la base de datos, infórmaselo amablemente y con brevedad.
-6. IDIOMA: Español claro, profesional y bien redactado.
+1. SÉ CONCISO Y DIRECTO: Ve al grano. Si el usuario pregunta por un dato concreto (por ejemplo, ubicación, teléfono, escuadrón, agente, demo o recuento), responde directamente lo solicitado con claridad.
+2. PERMISIVO CON CONTEOS Y FILTROS: Si el usuario pregunta "cuántos clientes..." o "qué negocios...", indica el total exacto encontrado en la base de datos y lista los nombres o detalles más relevantes con cortesía.
+3. BASADO 100% EN HECHOS: Usa exclusivamente la información provista en los datos de MongoDB. No inventes datos.
+4. ENLACES Y URLs: Si hay enlaces relevantes (Instagram, demo, investigación), colócalos en formato markdown limpio [Nombre del recurso](URL).
+5. CAMPOS NO ENCONTRADOS: Si un dato no figura en la base de datos, indícalo amablemente sin rodeos.
+6. IDIOMA: Español claro y profesional.
 `;
 
   const prompt = `
@@ -248,4 +305,3 @@ Responde al empleado de forma concisa, inteligente y contextualizada:`;
 // Aliases para retrocompatibilidad
 export const parseQueryWithGemini = parseQueryWithAI;
 export const draftResponseWithGemini = draftResponseWithAI;
-
