@@ -31,10 +31,15 @@ router.get('/status', async (req, res) => {
       clientesCount: clientCount,
       verificacionCount: verifCount
     },
+    openRouter: {
+      configured: Boolean(config.openRouter.apiKey),
+      models: config.openRouter.models,
+      timeoutMs: config.openRouter.timeoutMs,
+      maxTotalTimeoutMs: config.openRouter.maxTotalTimeoutMs
+    },
     gemini: {
-      configured: Boolean(config.gemini.apiKey),
-      model: config.gemini.model
-      // ¡JAMÁS exponer la API key aquí!
+      configured: Boolean(config.gemini.apiKey || config.openRouter.apiKey),
+      model: config.openRouter.models[0] || config.gemini.model
     },
     serverTime: new Date().toISOString()
   });

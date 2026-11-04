@@ -8,6 +8,16 @@ const __dirname = path.dirname(__filename);
 // Cargar variables de entorno desde server/.env
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
+const defaultModels = [
+  'nvidia/nemotron-3.5-lightning:free',
+  'google/gemma-4-31b-it:free',
+  'google/gemma-4-26b-a4b-it:free'
+];
+
+const parsedModels = process.env.OPENROUTER_MODELS
+  ? process.env.OPENROUTER_MODELS.split(',').map((m) => m.trim()).filter(Boolean)
+  : defaultModels;
+
 export const config = {
   port: parseInt(process.env.PORT || '3001', 10),
   clientOrigin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
@@ -23,6 +33,13 @@ export const config = {
     initialUsername: process.env.ADMIN_INITIAL_USERNAME || 'admin',
     initialPassword: process.env.ADMIN_INITIAL_PASSWORD || '123'
   },
+  openRouter: {
+    apiKey: process.env.OPENROUTER_API_KEY ? process.env.OPENROUTER_API_KEY.trim() : '',
+    models: parsedModels.length > 0 ? parsedModels : defaultModels,
+    timeoutMs: parseInt(process.env.OPENROUTER_TIMEOUT_MS || '10000', 10),
+    maxTotalTimeoutMs: 40000
+  },
+  // Mantener fallback de compatibilidad opcional
   gemini: {
     apiKey: process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.trim() : '',
     model: process.env.GEMINI_MODEL || 'gemini-3.8-flash'

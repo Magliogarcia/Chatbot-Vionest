@@ -18,7 +18,7 @@ import {
   formatMatchesDisambiguation,
   formatPhoneVerificationResponse
 } from './deterministicParser.js';
-import { parseQueryWithGemini, draftResponseWithGemini } from './geminiService.js';
+import { parseQueryWithAI, draftResponseWithAI } from './openRouterService.js';
 import { config } from '../config/index.js';
 
 export async function processChatMessage({ userId, conversationId, messageText }) {
@@ -59,7 +59,7 @@ export async function processChatMessage({ userId, conversationId, messageText }
           pendingMatches: null
         };
 
-        const aiResponse = await draftResponseWithGemini({
+        const aiResponse = await draftResponseWithAI({
           userMessage: cleanInput,
           retrievedData: clientDoc,
           queryType: 'CLIENT_DETAILS',
@@ -78,8 +78,8 @@ export async function processChatMessage({ userId, conversationId, messageText }
 
     // Si Gemini está disponible y la consulta determinista es incierta, consultar a Gemini
     let aiIntent = null;
-    if (config.gemini.apiKey && (detIntent.intent === 'UNKNOWN' || detIntent.intent === 'CLIENT_SEARCH')) {
-      aiIntent = await parseQueryWithGemini(cleanInput, updatedContext);
+    if ((config.openRouter.apiKey || config.gemini.apiKey) && (detIntent.intent === 'UNKNOWN' || detIntent.intent === 'CLIENT_SEARCH')) {
+      aiIntent = await parseQueryWithAI(cleanInput, updatedContext);
     }
 
     const intent = aiIntent?.intent || detIntent.intent;
@@ -87,7 +87,7 @@ export async function processChatMessage({ userId, conversationId, messageText }
     // Procesar según la intención identificada
     switch (intent) {
       case 'HELP_OR_GREETING': {
-        const aiDraft = await draftResponseWithGemini({
+        const aiDraft = await draftResponseWithAI({
           userMessage: cleanInput,
           retrievedData: {
             sistema: 'Vionest Chatbot Interno de Clientes',
@@ -131,7 +131,7 @@ Puedo ayudarte con:
           assistantText = 'Por favor proporciona el número telefónico que deseas verificar, o selecciona primero una empresa en la conversación.';
         } else {
           const verifResult = await verifyPhoneNumber(phoneToVerify);
-          const aiDraft = await draftResponseWithGemini({
+          const aiDraft = await draftResponseWithAI({
             userMessage: cleanInput,
             retrievedData: { telefonoConsultado: phoneToVerify, ...verifResult },
             queryType: 'PHONE_VERIFICATION',
@@ -157,7 +157,7 @@ Puedo ayudarte con:
               clientName: clientDoc['Nombre de la Empresa'],
               pendingMatches: null
             };
-            const aiDraft = await draftResponseWithGemini({
+            const aiDraft = await draftResponseWithAI({
               userMessage: cleanInput,
               retrievedData: clientDoc,
               queryType: 'CLIENT_DETAILS',
@@ -195,7 +195,7 @@ Puedo ayudarte con:
             if (filterRes.total === 0) {
               assistantText = `No se encontraron clientes registrados con el criterio **${filterField} = "${filterValue}"**.`;
             } else {
-              const aiDraft = await draftResponseWithGemini({
+              const aiDraft = await draftResponseWithAI({
                 userMessage: cleanInput,
                 retrievedData: filterRes,
                 queryType: 'FILTER_RESULTS',
@@ -259,7 +259,7 @@ Puedo ayudarte con:
 
           const requestedField = detIntent.requestedField || (aiIntent?.requestedFields?.[0] || null);
 
-          const aiDraft = await draftResponseWithGemini({
+          const aiDraft = await draftResponseWithAI({
             userMessage: cleanInput,
             retrievedData: clientDoc,
             queryType: 'FIELD_QUERY',
@@ -284,7 +284,7 @@ Puedo ayudarte con:
             pendingMatches: null
           };
 
-          const aiDraft = await draftResponseWithGemini({
+          const aiDraft = await draftResponseWithAI({
             userMessage: cleanInput,
             retrievedData: clientDoc,
             queryType: 'CLIENT_DETAILS',
@@ -301,7 +301,7 @@ Puedo ayudarte con:
               pendingMatches: null
             };
 
-            const aiDraft = await draftResponseWithGemini({
+            const aiDraft = await draftResponseWithAI({
               userMessage: cleanInput,
               retrievedData: clientDoc,
               queryType: 'CLIENT_DETAILS',

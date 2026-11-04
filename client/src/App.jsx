@@ -10,8 +10,8 @@ import { ChangePasswordModal } from './components/ChangePasswordModal.jsx';
 import { AdminCreateUserModal } from './components/AdminCreateUserModal.jsx';
 import { SystemStatusModal } from './components/SystemStatusModal.jsx';
 import { ConfirmModal } from './components/ConfirmModal.jsx';
+import { ThinkingIndicator } from './components/ThinkingIndicator.jsx';
 import { chatApi, systemApi } from './services/api.js';
-import { Loader2, AlertCircle } from 'lucide-react';
 
 export default function App() {
   const { user, loading: authLoading } = useAuth();
@@ -22,6 +22,7 @@ export default function App() {
   const [currentContext, setCurrentContext] = useState(null);
   const [input, setInput] = useState('');
   const [loadingMessage, setLoadingMessage] = useState(false);
+  const [lastQuery, setLastQuery] = useState('');
   const [loadingConvs, setLoadingConvs] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [systemStatus, setSystemStatus] = useState(null);
@@ -99,6 +100,7 @@ export default function App() {
     setCurrentContext(null);
     setChatError(null);
     setInput('');
+    setLastQuery('');
   }
 
   async function handleDeleteConversation(convId) {
@@ -123,6 +125,7 @@ export default function App() {
 
     setChatError(null);
     setInput('');
+    setLastQuery(textToSend);
 
     // Mensaje del usuario temporal para feedback inmediato
     const tempUserMsg = {
@@ -153,11 +156,11 @@ export default function App() {
       }
     } catch (err) {
       setChatError(err.message || 'Error al procesar la consulta.');
-      // Dejar mensaje de error en chat
+      // Dejar mensaje de error detallado en chat
       const errorMsg = {
         id: `err_${Date.now()}`,
         sender: 'assistant',
-        text: `⚠️ **Ocurrió un problema:** ${err.message || 'No fue posible completar la consulta en la base de datos.'}`,
+        text: `⚠️ **Ocurrió un problema:** ${err.message || 'No fue posible completar la consulta en la base de datos tras consultar a los agentes.'}`,
         timestamp: new Date().toISOString()
       };
       setMessages((prev) => [...prev, errorMsg]);
@@ -227,21 +230,17 @@ export default function App() {
                     />
                   ))}
 
-                  {/* Loading indicator */}
+                  {/* Loading indicator dinámico estilo Claude con rotación de frases y alerta de 40s */}
                   {loadingMessage && (
-                    <div className="flex gap-3 mb-6 animate-fade-in">
-                      <div className="w-8 h-8 rounded-xl bg-white border border-[#2bace2]/40 flex items-center justify-center flex-shrink-0 shadow-sm">
-                        <div className="w-4 h-4 border-2 border-[#2bace2] border-t-transparent rounded-full animate-spin" />
-                      </div>
-                      <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-xs px-4 py-3 text-xs text-[#1b275d] font-semibold flex items-center gap-2.5 shadow-sm">
-                        <span>Consultando base de datos de clientes...</span>
-                        <span className="flex gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#2bace2] animate-bounce" style={{ animationDelay: '0ms' }} />
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#2bace2] animate-bounce" style={{ animationDelay: '150ms' }} />
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#2bace2] animate-bounce" style={{ animationDelay: '300ms' }} />
-                        </span>
-                      </div>
-                    </div>
+                    <ThinkingIndicator
+                      lastUserQuery={lastQuery}
+                      onRetry={() => {
+                        if (lastQuery) {
+                          handleSendMessage(lastQuery);
+                        }
+                      }}
+                      onCancel={() => setLoadingMessage(false)}
+                    />
                   )}
 
                   <div ref={messagesEndRef} />

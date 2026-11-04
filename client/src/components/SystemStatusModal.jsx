@@ -1,8 +1,15 @@
 import React from 'react';
-import { X, Database, Cpu, ShieldCheck, ExternalLink } from 'lucide-react';
+import { X, Database, Cpu, ShieldCheck, ExternalLink, Network, ArrowRight } from 'lucide-react';
 
 export function SystemStatusModal({ isOpen, onClose, systemStatus }) {
   if (!isOpen) return null;
+
+  const isConfigured = Boolean(systemStatus?.openRouter?.configured || systemStatus?.gemini?.configured);
+  const models = systemStatus?.openRouter?.models || [
+    'nvidia/nemotron-3.5-lightning:free',
+    'google/gemma-4-31b-it:free',
+    'google/gemma-4-26b-a4b-it:free'
+  ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fade-in">
@@ -56,38 +63,47 @@ export function SystemStatusModal({ isOpen, onClose, systemStatus }) {
             </div>
           </div>
 
-          {/* Gemini AI Status Box */}
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+          {/* OpenRouter AI Status Box (Cascada de Agentes) */}
+          <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="font-bold text-[#1b275d] flex items-center gap-2">
-                <Cpu className="w-4 h-4 text-[#2bace2]" />
-                Google Gemini AI
+                <Network className="w-4 h-4 text-[#2bace2]" />
+                OpenRouter AI (Cascada de 3 Agentes)
               </span>
               <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                systemStatus?.gemini?.configured
+                isConfigured
                   ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
                   : 'bg-amber-50 border border-amber-200 text-amber-700'
               }`}>
-                {systemStatus?.gemini?.configured ? 'API Key Configurada' : 'Sin API Key (Modo Determinista)'}
+                {isConfigured ? '3 Agentes Conectados' : 'Sin API Key (Modo Determinista)'}
               </span>
             </div>
-            <div className="text-slate-600 pt-2.5 border-t border-slate-200 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400 font-medium">Modelo Activo:</span>
-                <span className="font-mono text-[#1b275d] font-bold">{systemStatus?.gemini?.model || 'gemini-2.5-flash'}</span>
+
+            <div className="text-slate-600 pt-2 border-t border-slate-200 space-y-2">
+              <div className="text-[11px] text-slate-500 font-medium flex items-center justify-between">
+                <span>Orden secuencial de respuesta:</span>
+                <span className="font-mono text-[#2bace2] font-bold">10s timeout por agente</span>
               </div>
 
-              {!systemStatus?.gemini?.configured && (
-                <div className="mt-2.5 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-900">
-                  <p className="font-bold mb-1 text-amber-900">¿Cómo configurar Google Gemini?</p>
-                  <ol className="list-decimal pl-4 space-y-1 text-xs text-amber-800">
-                    <li>Ingresa a <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="underline font-bold text-[#1b275d] inline-flex items-center gap-1">Google AI Studio <ExternalLink className="w-3 h-3 inline" /></a></li>
-                    <li>Crea tu API Key gratuita.</li>
-                    <li>Agrega la clave en <code className="bg-white px-1.5 py-0.5 rounded text-[#1b275d] font-mono border border-slate-200">server/.env</code> en el parámetro <code className="text-[#2bace2]">GEMINI_API_KEY</code>.</li>
-                    <li>Reinicia el servidor backend.</li>
-                  </ol>
-                </div>
-              )}
+              {/* Lista secuencial de agentes */}
+              <div className="space-y-1.5 font-mono text-[11px]">
+                {models.map((mod, index) => (
+                  <div key={index} className="flex items-center gap-2 bg-white px-2.5 py-1.5 rounded-lg border border-slate-200">
+                    <span className="w-4 h-4 rounded-full bg-[#2bace2]/15 text-[#2bace2] text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                      {index + 1}
+                    </span>
+                    <span className="text-[#1b275d] font-bold truncate flex-1">{mod}</span>
+                    <span className="text-[10px] text-slate-400 font-sans font-medium">
+                      {index === 0 ? 'Principal' : index === 1 ? 'Respaldo 1' : 'Respaldo 2'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between text-[11px] pt-1 text-slate-500">
+                <span>Tiempo límite total antes de alerta:</span>
+                <span className="font-bold text-[#1b275d]">40 segundos</span>
+              </div>
             </div>
           </div>
 
@@ -95,8 +111,10 @@ export function SystemStatusModal({ isOpen, onClose, systemStatus }) {
           <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex items-start gap-3 text-slate-600">
             <ShieldCheck className="w-5 h-5 text-[#2bace2] flex-shrink-0 mt-0.5" />
             <div>
-              <strong className="text-[#1b275d] block font-bold mb-0.5">Política de Solo Lectura Activa:</strong>
-              <span className="text-slate-600 font-normal leading-relaxed">El chatbot no altera, inserta ni elimina ningún dato en las colecciones de clientes. Todas las consultas son deterministas, sanitizadas y protegidas.</span>
+              <strong className="text-[#1b275d] block font-bold mb-0.5">Política de Solo Lectura y Respaldo Fáctico:</strong>
+              <span className="text-slate-600 font-normal leading-relaxed">
+                Los agentes de OpenRouter reciben exclusivamente datos de lectura desde MongoDB y no pueden alterar la base de datos. Si todos los agentes fallaran, el sistema recurre al formateo determinista interno.
+              </span>
             </div>
           </div>
         </div>
