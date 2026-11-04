@@ -172,9 +172,15 @@ export default function App() {
   // Si está cargando la sesión inicial
   if (authLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-white text-[#1b275d]">
-        <div className="w-10 h-10 border-3 border-[#2bace2] border-t-transparent rounded-full animate-spin mb-4" />
-        <span className="text-sm font-bold tracking-wide">Iniciando Vionest Chatbot...</span>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white text-[#1b275d] p-4">
+        {/* Logo de Vionest */}
+        <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-[#2bace2] to-[#1a78a3] p-0.5 shadow-lg shadow-[#2bace2]/20 mb-5 flex items-center justify-center animate-fade-in">
+          <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center overflow-hidden">
+            <img src="/logo.webp" alt="Vionest Logo" className="w-12 h-12 object-contain" />
+          </div>
+        </div>
+        <div className="w-8 h-8 border-3 border-[#2bace2] border-t-transparent rounded-full animate-spin mb-3" />
+        <span className="text-sm font-bold tracking-wide text-[#1b275d]">Iniciando Vionest Chatbot...</span>
       </div>
     );
   }

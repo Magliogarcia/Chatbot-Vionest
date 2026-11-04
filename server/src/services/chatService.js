@@ -14,9 +14,7 @@ import {
 import {
   parseOptionSelection,
   parseDeterministicQuery,
-  formatClientDetailsResponse,
-  formatMatchesDisambiguation,
-  formatPhoneVerificationResponse
+  formatMatchesDisambiguation
 } from './deterministicParser.js';
 import { parseQueryWithAI, draftResponseWithAI } from './openRouterService.js';
 import { config } from '../config/index.js';
@@ -66,17 +64,21 @@ export async function processChatMessage({ userId, conversationId, messageText }
           currentClientName: clientDoc['Nombre de la Empresa']
         });
 
-        assistantText = aiResponse || formatClientDetailsResponse(clientDoc);
+        if (!aiResponse) {
+          throw new Error('Los agentes de IA no pudieron responder en este momento. Por favor reintenta tu consulta.');
+        }
+
+        assistantText = aiResponse;
       }
     }
   }
 
-  // 3. Si no fue una selección de desambiguación, procesar la consulta
+  // 3. Si no fue una selección de desambiguación, procesar la consulta con IA
   if (!assistantText) {
-    // Primero probar parser determinista rápido
+    // Parser determinista para pre-filtrar intención
     const detIntent = parseDeterministicQuery(cleanInput, updatedContext);
 
-    // Si Gemini está disponible y la consulta determinista es incierta, consultar a Gemini
+    // Consulta de intención a la IA de OpenRouter si hay incertidumbre
     let aiIntent = null;
     if ((config.openRouter.apiKey || config.gemini.apiKey) && (detIntent.intent === 'UNKNOWN' || detIntent.intent === 'CLIENT_SEARCH')) {
       aiIntent = await parseQueryWithAI(cleanInput, updatedContext);
@@ -91,28 +93,17 @@ export async function processChatMessage({ userId, conversationId, messageText }
           userMessage: cleanInput,
           retrievedData: {
             sistema: 'Vionest Chatbot Interno de Clientes',
-            capacidades: [
-              'Consultar información de cualquier cliente por nombre de empresa (ej. "¿Qué información tenemos de Academia de idiomas Let\'s Talk?")',
-              'Consultar campos específicos como teléfonos, URLs de demos, observaciones, fechas o investigadores asignados',
-              'Verificar números telefónicos en la colección auxiliar de verificación',
-              'Buscar qué empresa tiene un número telefónico dado',
-              'Filtrar clientes por Escuadrón (ej. Escuadrón 2) o Estatus (ej. No interesado)'
-            ]
+            alcance: 'Consulta conversacional concisa de datos verificados de clientes en MongoDB.'
           },
           queryType: 'GREETING',
           currentClientName: updatedContext?.clientName || null
         });
 
-        assistantText = aiDraft || `¡Hola! Soy el asistente interno de Vionest para consultar la base de datos de clientes.
+        if (!aiDraft) {
+          throw new Error('Los agentes de IA no pudieron responder en este momento. Por favor reintenta tu consulta.');
+        }
 
-Puedo ayudarte con:
-- **Consultar clientes**: *¿Qué información tenemos de Academia de idiomas Let's Talk?*
-- **Campos específicos**: *¿Cuál es el teléfono de esa empresa?*, *¿Quién es su investigador asignado?*, *Muéstrame el enlace de su demo*.
-- **Verificación de teléfonos**: *¿Está el número 0414-4006888 verificado en la colección auxiliar?*
-- **Búsqueda por teléfono**: *¿A qué empresa pertenece el 0412-4814937?*
-- **Filtros por escuadrón o estatus**: *¿Qué empresas están asignadas al Escuadrón 2?*, *¿Qué clientes tienen estatus No interesado?*
-
-¿Qué consulta deseas realizar hoy?`;
+        assistantText = aiDraft;
         break;
       }
 
@@ -137,7 +128,12 @@ Puedo ayudarte con:
             queryType: 'PHONE_VERIFICATION',
             currentClientName: updatedContext?.clientName || null
           });
-          assistantText = aiDraft || formatPhoneVerificationResponse(verifResult, phoneToVerify);
+
+          if (!aiDraft) {
+            throw new Error('Los agentes de IA no pudieron redactar la verificación del teléfono a tiempo.');
+          }
+
+          assistantText = aiDraft;
         }
         break;
       }
@@ -149,7 +145,7 @@ Puedo ayudarte con:
         } else {
           const docs = await searchClientByPhone(phone);
           if (docs.length === 0) {
-            assistantText = `No se encontró ningún cliente registrado con el número **${phone}** en la colección principal.`;
+            assistantText = `No se encontró ningún cliente registrado con el número **${phone}** en la base de datos de Vionest.`;
           } else if (docs.length === 1) {
             const clientDoc = docs[0];
             updatedContext = {
@@ -163,9 +159,14 @@ Puedo ayudarte con:
               queryType: 'CLIENT_DETAILS',
               currentClientName: clientDoc['Nombre de la Empresa']
             });
-            assistantText = aiDraft || formatClientDetailsResponse(clientDoc);
+
+            if (!aiDraft) {
+              throw new Error('Los agentes de IA no pudieron redactar los datos del cliente a tiempo.');
+            }
+
+            assistantText = aiDraft;
           } else {
-            // Múltiples clientes con el mismo teléfono
+            // Múltiples clientes con el mismo teléfono: presentar tarjetas de selección
             const matches = docs.map(d => ({
               _id: d._id.toString(),
               nombreEmpresa: d['Nombre de la Empresa'],
@@ -202,26 +203,11 @@ Puedo ayudarte con:
                 currentClientName: null
               });
 
-              if (aiDraft) {
-                assistantText = aiDraft;
-              } else {
-                const lines = [
-                  `Se encontraron un total de **${filterRes.total}** clientes con **${filterField}** coincidente con "${filterValue}". Mostrando los primeros ${filterRes.returned}:\n`
-                ];
-
-                filterRes.results.forEach((r, idx) => {
-                  lines.push(`**${idx + 1}. ${r.nombreEmpresa}**`);
-                  lines.push(`   - Estatus: ${r.estatus} | Escuadrón: ${r.escuadron}`);
-                  if (r.telefono && r.telefono !== 'Sin teléfono') lines.push(`   - Tel: ${r.telefono}`);
-                  if (r.contacto && r.contacto !== 'Sin contacto') lines.push(`   - Contacto: ${r.contacto}`);
-                });
-
-                if (filterRes.total > filterRes.returned) {
-                  lines.push(`\n_Hay ${filterRes.total - filterRes.returned} clientes adicionales. Puedes consultar por el nombre específico de cualquiera de ellos._`);
-                }
-
-                assistantText = lines.join('\n');
+              if (!aiDraft) {
+                throw new Error('Los agentes de IA no pudieron sintetizar los resultados del filtro a tiempo.');
               }
+
+              assistantText = aiDraft;
             }
           } catch (filterErr) {
             assistantText = `No fue posible realizar la consulta filtrada: ${filterErr.message}`;
@@ -248,16 +234,14 @@ Puedo ayudarte con:
 
         if (!clientDoc) {
           assistantText = updatedContext?.clientName
-            ? `¿Deseas consultar sobre **${updatedContext.clientName}** o sobre otra empresa? Por favor indica el nombre de la empresa.`
-            : '¿A qué empresa te refieres? Por favor indica el nombre de la empresa para consultar sus datos.';
+            ? `¿Deseas consultar sobre **${updatedContext.clientName}** o sobre otra empresa? Por favor indícame el nombre.`
+            : '¿A qué empresa te refieres? Por favor indícame el nombre de la empresa para consultar sus datos.';
         } else {
           updatedContext = {
             clientId: clientDoc._id.toString(),
             clientName: clientDoc['Nombre de la Empresa'],
             pendingMatches: null
           };
-
-          const requestedField = detIntent.requestedField || (aiIntent?.requestedFields?.[0] || null);
 
           const aiDraft = await draftResponseWithAI({
             userMessage: cleanInput,
@@ -266,7 +250,11 @@ Puedo ayudarte con:
             currentClientName: clientDoc['Nombre de la Empresa']
           });
 
-          assistantText = aiDraft || formatClientDetailsResponse(clientDoc, requestedField);
+          if (!aiDraft) {
+            throw new Error('Los agentes de IA no pudieron responder en este momento sobre este campo.');
+          }
+
+          assistantText = aiDraft;
         }
         break;
       }
@@ -291,7 +279,11 @@ Puedo ayudarte con:
             currentClientName: clientDoc['Nombre de la Empresa']
           });
 
-          assistantText = aiDraft || formatClientDetailsResponse(clientDoc);
+          if (!aiDraft) {
+            throw new Error('Los agentes de IA no pudieron redactar los datos del cliente a tiempo.');
+          }
+
+          assistantText = aiDraft;
         } else if (searchResult.matches.length === 1) {
           const clientDoc = await getClientById(searchResult.matches[0]._id);
           if (clientDoc) {
@@ -308,12 +300,16 @@ Puedo ayudarte con:
               currentClientName: clientDoc['Nombre de la Empresa']
             });
 
-            assistantText = aiDraft || formatClientDetailsResponse(clientDoc);
+            if (!aiDraft) {
+              throw new Error('Los agentes de IA no pudieron redactar los datos del cliente a tiempo.');
+            }
+
+            assistantText = aiDraft;
           } else {
             assistantText = `No se encontró información detallada para "${companyToSearch}".`;
           }
         } else if (searchResult.matches.length > 1) {
-          // Coincidencias múltiples: DEBE requerir selección sin mostrar detalles sensibles
+          // Coincidencias múltiples: DEBE requerir selección interactiva
           updatedContext = {
             ...(updatedContext || {}),
             pendingMatches: searchResult.matches

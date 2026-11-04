@@ -111,9 +111,9 @@ export function SystemStatusModal({ isOpen, onClose, systemStatus }) {
           <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex items-start gap-3 text-slate-600">
             <ShieldCheck className="w-5 h-5 text-[#2bace2] flex-shrink-0 mt-0.5" />
             <div>
-              <strong className="text-[#1b275d] block font-bold mb-0.5">Política de Solo Lectura y Respaldo Fáctico:</strong>
+              <strong className="text-[#1b275d] block font-bold mb-0.5">Respuestas Exclusivas por Inteligencia Artificial:</strong>
               <span className="text-slate-600 font-normal leading-relaxed">
-                Los agentes de OpenRouter reciben exclusivamente datos de lectura desde MongoDB y no pueden alterar la base de datos. Si todos los agentes fallaran, el sistema recurre al formateo determinista interno.
+                Todas las respuestas son sintetizadas de forma concisa y natural por los agentes de IA de OpenRouter con base en los datos de MongoDB.
               </span>
             </div>
           </div>
