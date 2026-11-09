@@ -35,16 +35,17 @@ export const config = {
   deepseek: {
     apiKey: (process.env.DEEPSEEK_API_KEY || '').trim(),
     model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
-    timeoutMs: parseInt(process.env.DEEPSEEK_TIMEOUT_MS || '12000', 10)
+    timeoutMs: parseInt(process.env.DEEPSEEK_TIMEOUT_MS || '20000', 10)
   },
   openRouter: {
     apiKey: process.env.OPENROUTER_API_KEY ? process.env.OPENROUTER_API_KEY.trim() : '',
     models: parsedModels.length > 0 ? parsedModels : defaultModels,
-    timeoutMs: parseInt(process.env.OPENROUTER_TIMEOUT_MS || '12000', 10),
-    maxTotalTimeoutMs: 40000
+    timeoutMs: parseInt(process.env.OPENROUTER_TIMEOUT_MS || '10000', 10),
+    maxTotalTimeoutMs: 45000
   },
   gemini: {
     apiKey: (process.env.GEMINI_API_KEY || '').trim(),
-    model: process.env.GEMINI_MODEL || 'gemini-3.8-flash'
+    model: process.env.GEMINI_MODEL || 'gemini-3.8-flash',
+    timeoutMs: parseInt(process.env.GEMINI_TIMEOUT_MS || '10000', 10)
   }
 };

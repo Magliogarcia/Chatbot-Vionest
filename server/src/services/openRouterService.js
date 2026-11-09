@@ -188,19 +188,19 @@ async function callGeminiOfficial({ systemInstruction, prompt, isJson, timeoutMs
  */
 export async function generateWithFallback({ systemInstruction, prompt, isJson = false }) {
   const models = config.openRouter.models;
-  const timeoutPerAgent = config.openRouter.timeoutMs || 12000;
-  const maxTotalTimeout = config.openRouter.maxTotalTimeoutMs || 40000;
+  const timeoutPerAgent = config.openRouter.timeoutMs || 10000;
+  const maxTotalTimeout = config.openRouter.maxTotalTimeoutMs || 45000;
   const cascadeStartTime = Date.now();
 
   const failedAttempts = [];
 
   // ==========================================
-  // 1. Probar Agente 1: DeepSeek Oficial
+  // 1. Probar Agente 1: DeepSeek Oficial (20s)
   // ==========================================
   if (config.deepseek.apiKey) {
     const elapsed = Date.now() - cascadeStartTime;
     const remainingTime = Math.max(1000, maxTotalTimeout - elapsed);
-    const deepseekTimeout = Math.min(config.deepseek.timeoutMs || timeoutPerAgent, remainingTime);
+    const deepseekTimeout = Math.min(config.deepseek.timeoutMs || 20000, remainingTime);
 
     console.log(`[Cascada AI] 🤖 [Agente 1 - Principal] DeepSeek: "${config.deepseek.model}" (Timeout: ${deepseekTimeout / 1000}s)...`);
 
@@ -264,7 +264,7 @@ export async function generateWithFallback({ systemInstruction, prompt, isJson =
   if (config.gemini.apiKey) {
     const totalElapsedBeforeGemini = Date.now() - cascadeStartTime;
     const remainingForGemini = Math.max(1000, maxTotalTimeout - totalElapsedBeforeGemini);
-    const geminiTimeout = Math.min(timeoutPerAgent, remainingForGemini);
+    const geminiTimeout = Math.min(config.gemini.timeoutMs || 10000, remainingForGemini);
 
     console.log(`[Cascada AI] 🤖 [Agente 3 - Respaldo] Google Gemini Oficial: "${config.gemini.model}" (Timeout: ${geminiTimeout / 1000}s)...`);
 
