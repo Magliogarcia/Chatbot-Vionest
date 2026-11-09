@@ -2,6 +2,77 @@ import { config } from '../config/index.js';
 import { GoogleGenAI } from '@google/genai';
 
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
+const DEEPSEEK_ENDPOINT = 'https://api.deepseek.com/chat/completions';
+
+/**
+ * Realiza una llamada al modelo oficial de DeepSeek (Agente 1 Principal)
+ */
+async function callDeepSeekModel({ systemInstruction, prompt, isJson, timeoutMs }) {
+  if (!config.deepseek.apiKey) {
+    throw new Error('DEEPSEEK_API_KEY no configurada');
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => {
+    controller.abort(new Error(`Timeout de ${timeoutMs / 1000}s excedido para DeepSeek`));
+  }, timeoutMs);
+
+  const startTime = Date.now();
+
+  try {
+    const messages = [
+      { role: 'system', content: systemInstruction },
+      { role: 'user', content: prompt }
+    ];
+
+    const bodyPayload = {
+      model: config.deepseek.model || 'deepseek-chat',
+      messages,
+      temperature: isJson ? 0.1 : 0.3
+    };
+
+    if (isJson) {
+      bodyPayload.response_format = { type: 'json_object' };
+    }
+
+    const res = await fetch(DEEPSEEK_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${config.deepseek.apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(bodyPayload),
+      signal: controller.signal
+    });
+
+    clearTimeout(timer);
+
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => '');
+      throw new Error(`HTTP ${res.status}: ${errorText.slice(0, 250)}`);
+    }
+
+    const data = await res.json();
+    const content = data?.choices?.[0]?.message?.content;
+
+    if (!content) {
+      throw new Error('Respuesta vacía de DeepSeek');
+    }
+
+    const durationMs = Date.now() - startTime;
+    return { text: content.trim(), modelUsed: `deepseek/${config.deepseek.model}`, durationMs };
+  } catch (err) {
+    clearTimeout(timer);
+    const durationMs = Date.now() - startTime;
+    const isTimeout = err.name === 'AbortError' || err.message?.includes('Timeout');
+    throw {
+      isTimeout,
+      model: 'deepseek-chat',
+      durationMs,
+      message: isTimeout ? `Timeout excedido (${timeoutMs / 1000}s)` : err.message
+    };
+  }
+}
 
 /**
  * Realiza una llamada a un modelo de OpenRouter con timeout estricto mediante AbortController.
@@ -111,9 +182,9 @@ async function callGeminiOfficial({ systemInstruction, prompt, isJson, timeoutMs
 
 /**
  * Ejecuta la llamada en cascada secuencial (Fallback):
- * 1. Agente 1: dots-studio/dots-3-note-preview:free (OpenRouter)
- * 2. Agente 2: google/gemma-4-26b-a4b-it:free (OpenRouter)
- * 3. Agente 3: gemini-3.8-flash oficial de Google (SDK oficial)
+ * 1. Agente 1: DeepSeek Oficial (deepseek-chat)
+ * 2. Agente 2: OpenRouter (liquid/lfm-3-1.7b:free / dots-studio/dots-3-note-preview:free)
+ * 3. Agente 3: Google Gemini Oficial (gemini-3.8-flash)
  */
 export async function generateWithFallback({ systemInstruction, prompt, isJson = false }) {
   const models = config.openRouter.models;
@@ -123,7 +194,36 @@ export async function generateWithFallback({ systemInstruction, prompt, isJson =
 
   const failedAttempts = [];
 
-  // 1. Probar modelos de OpenRouter (Agente 1 y Agente 2)
+  // ==========================================
+  // 1. Probar Agente 1: DeepSeek Oficial
+  // ==========================================
+  if (config.deepseek.apiKey) {
+    const elapsed = Date.now() - cascadeStartTime;
+    const remainingTime = Math.max(1000, maxTotalTimeout - elapsed);
+    const deepseekTimeout = Math.min(config.deepseek.timeoutMs || timeoutPerAgent, remainingTime);
+
+    console.log(`[Cascada AI] 🤖 [Agente 1 - Principal] DeepSeek: "${config.deepseek.model}" (Timeout: ${deepseekTimeout / 1000}s)...`);
+
+    try {
+      const result = await callDeepSeekModel({
+        systemInstruction,
+        prompt,
+        isJson,
+        timeoutMs: deepseekTimeout
+      });
+
+      console.log(`[Cascada AI] ✅ [Agente 1] DeepSeek respondió con éxito en ${result.durationMs}ms.`);
+      return result;
+    } catch (err) {
+      failedAttempts.push({ agentNumber: 1, model: 'deepseek-chat', reason: err.message, durationMs: err.durationMs });
+      console.warn(`[Cascada AI] ⚠️ [Agente 1] DeepSeek no completó la solicitud (${err.durationMs}ms): ${err.message}.`);
+      console.log(`[Cascada AI] 🔄 Saltando al siguiente agente de respaldo...`);
+    }
+  }
+
+  // ==========================================
+  // 2. Probar Agente 2: Modelos de OpenRouter
+  // ==========================================
   if (config.openRouter.apiKey) {
     for (let i = 0; i < models.length; i++) {
       const model = models[i];
@@ -137,7 +237,7 @@ export async function generateWithFallback({ systemInstruction, prompt, isJson =
       const remainingTime = maxTotalTimeout - totalElapsed;
       const currentTimeout = Math.min(timeoutPerAgent, remainingTime);
 
-      console.log(`[Cascada AI] 🤖 [Agente ${i + 1}/${models.length + 1}] OpenRouter: "${model}" (Timeout: ${currentTimeout / 1000}s)...`);
+      console.log(`[Cascada AI] 🤖 [Agente 2.${i + 1}] OpenRouter: "${model}" (Timeout: ${currentTimeout / 1000}s)...`);
 
       try {
         const result = await callOpenRouterModel({
@@ -148,24 +248,25 @@ export async function generateWithFallback({ systemInstruction, prompt, isJson =
           timeoutMs: currentTimeout
         });
 
-        console.log(`[Cascada AI] ✅ [Agente ${i + 1}] "${model}" respondió con éxito en ${result.durationMs}ms.`);
+        console.log(`[Cascada AI] ✅ [Agente 2.${i + 1}] "${model}" respondió con éxito en ${result.durationMs}ms.`);
         return result;
       } catch (err) {
-        failedAttempts.push({ agentNumber: i + 1, model, reason: err.message, durationMs: err.durationMs });
-        console.warn(`[Cascada AI] ⚠️ [Agente ${i + 1}] "${model}" falló (${err.durationMs}ms): ${err.message}.`);
+        failedAttempts.push({ agentNumber: `2.${i + 1}`, model, reason: err.message, durationMs: err.durationMs });
+        console.warn(`[Cascada AI] ⚠️ [Agente 2.${i + 1}] "${model}" falló (${err.durationMs}ms): ${err.message}.`);
         console.log(`[Cascada AI] 🔄 Activando siguiente agente en cascada...`);
       }
     }
   }
 
-  // 2. Probar Agente 3: Gemini Oficial de Google como respaldo
+  // ==========================================
+  // 3. Probar Agente 3: Gemini Oficial de Google
+  // ==========================================
   if (config.gemini.apiKey) {
-    const agent3Number = models.length + 1;
     const totalElapsedBeforeGemini = Date.now() - cascadeStartTime;
     const remainingForGemini = Math.max(1000, maxTotalTimeout - totalElapsedBeforeGemini);
     const geminiTimeout = Math.min(timeoutPerAgent, remainingForGemini);
 
-    console.log(`[Cascada AI] 🤖 [Agente ${agent3Number}] Google Gemini Oficial: "${config.gemini.model}" (Timeout: ${geminiTimeout / 1000}s)...`);
+    console.log(`[Cascada AI] 🤖 [Agente 3 - Respaldo] Google Gemini Oficial: "${config.gemini.model}" (Timeout: ${geminiTimeout / 1000}s)...`);
 
     try {
       const geminiResult = await callGeminiOfficial({
@@ -175,16 +276,16 @@ export async function generateWithFallback({ systemInstruction, prompt, isJson =
         timeoutMs: geminiTimeout
       });
 
-      console.log(`[Cascada AI] ✅ [Agente ${agent3Number}] Google Gemini oficial respondió con éxito en ${geminiResult.durationMs}ms.`);
+      console.log(`[Cascada AI] ✅ [Agente 3] Google Gemini oficial respondió con éxito en ${geminiResult.durationMs}ms.`);
       return geminiResult;
     } catch (geminiErr) {
       failedAttempts.push({
-        agentNumber: agent3Number,
+        agentNumber: 3,
         model: config.gemini.model,
         reason: geminiErr.message,
         durationMs: Date.now() - cascadeStartTime - totalElapsedBeforeGemini
       });
-      console.warn(`[Cascada AI] ⚠️ [Agente ${agent3Number}] Gemini oficial no completó la solicitud: ${geminiErr.message}`);
+      console.warn(`[Cascada AI] ⚠️ [Agente 3] Gemini oficial no completó la solicitud: ${geminiErr.message}`);
     }
   }
 
@@ -195,7 +296,7 @@ export async function generateWithFallback({ systemInstruction, prompt, isJson =
 }
 
 /**
- * Interpreta la intención del usuario y extrae parámetros de búsqueda de forma precisa.
+ * Interpreta la intención del usuario y extrae parámetros de búsqueda
  */
 export async function parseQueryWithAI(userMessage, currentContext) {
   const systemInstruction = `
@@ -212,31 +313,6 @@ DEBES DEVOLVER EXCLUSIVAMENTE UN OBJETO JSON VÁLIDO CON ESTA ESTRUCTURA:
   "filterValue": string | null,
   "phoneNumber": string | null
 }
-
-REGLAS DE EXTRACCIÓN:
-1. 'CLIENT_QUERY':
-   - Si el usuario pregunta por cualquier dato de una empresa específica (ej: "donde esta ubicada Almacenadora Torgus 2016 C.A", "Cual es el feebak de la llamada de Aceite Rogil?", "cuentame de Autopartes Embragues Valero", "quien es el contacto de polar").
-   - 'companyName': Extrae ÚNICAMENTE el nombre de la empresa limpio, quitando palabras de relleno ("donde esta ubicada", "cual es el feedback de la llamada de", "dime de", etc.). Ejemplos: "Aceite Rogil", "Almacenadora Torgus 2016 C.A", "Let's Talk".
-   - 'requestedField': Si preguntó por un campo específico, anota cuál: 'Ubicación exacta', 'Feedback Llamada', 'Número telefónico', 'Escuadrón Asignado', 'Halcón Asignado', 'Investigador Asignado', 'Contacto Principal', 'instagram', 'Estatus actual', 'URL Demo', 'Observaciones', etc.
-   - Si no menciona empresa pero dice "su ubicacion", "su telefono", "y que agente tiene?", y hay cliente en contexto: pon "useCurrentContext": true y companyName: null.
-
-2. 'FILTER_QUERY':
-   - Si el usuario pregunta por cantidades, listados o filtros generales de clientes.
-   - Ejemplos de Escuadrón:
-     * "Cuantos negocios tiene a cargo el escuadron condor" -> filterField: "Escuadrón Asignado", filterValue: "Cóndor"
-     * "que empresas estan en el escuadron cardenal" -> filterField: "Escuadrón Asignado", filterValue: "Cardenal"
-   - Ejemplos de Ubicación / Zona:
-     * "cuantos clientes tenemos de la zona de san diego" -> filterField: "Ubicación exacta", filterValue: "San Diego"
-     * "empresas en valencia" -> filterField: "Ubicación exacta", filterValue: "Valencia"
-     * "clientes en naguanagua" -> filterField: "Ubicación exacta", filterValue: "Naguanagua"
-   - Ejemplos de Estatus:
-     * "cuales clientes tienen estatus no interesado" -> filterField: "Estatus actual", filterValue: "No interesado"
-
-3. 'SEARCH_BY_PHONE' o 'VERIFY_PHONE':
-   - Si proporciona un número de teléfono.
-
-4. 'HELP_OR_GREETING':
-   - Saludos o preguntas generales ("hola", "buenas tardes", "que puedes hacer").
 
 Contexto actual de la conversación:
 ${currentContext ? `Cliente activo: "${currentContext.clientName}" (ID: ${currentContext.clientId})` : 'Ningún cliente en contexto.'}
