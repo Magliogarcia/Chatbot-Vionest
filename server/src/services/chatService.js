@@ -132,7 +132,7 @@ export async function processChatMessage({ userId, conversationId, messageText }
 
       if (isFilterIntent) {
         console.log(`[RAG Pipeline] 📊 Ejecutando filtro prioritario para: ${detIntent.filterField} = "${detIntent.filterValue}"`);
-        const filterRes = filterClientsByCriteria({ field: detIntent.filterField, value: detIntent.filterValue, limit: 10 });
+        const filterRes = await filterClientsByCriteria({ field: detIntent.filterField, value: detIntent.filterValue, limit: 10 });
 
         assistantText = await draftResponseWithAI({
           userMessage: cleanInput,
@@ -152,7 +152,7 @@ export async function processChatMessage({ userId, conversationId, messageText }
 
       // De lo contrario, buscar por coincidencia RAG de empresa o semántica
       if (!assistantText) {
-        const ragMatches = retrieveRelevantClients(cleanInput, 5);
+        const ragMatches = await retrieveRelevantClients(cleanInput, 5);
 
         // Caso C.1: El RAG encontró una coincidencia de altísima confianza (Nombre exacto o muy fuerte)
         if (ragMatches.length > 0 && (ragMatches[0].score >= 5000 || ragMatches[0].matchType === 'EXACT_NAME')) {

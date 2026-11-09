@@ -2,6 +2,7 @@ import MiniSearch from 'minisearch';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { getClientesCollection } from '../db/mongo.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -11,6 +12,8 @@ const BACKUP_CLIENTES_PATH = path.resolve(__dirname, '../../data/backup_atlas/cl
 let miniSearchInstance = null;
 let clientsMap = new Map(); // id -> doc
 let allClientsList = [];
+let lastIndexTime = 0;
+const CACHE_TTL_MS = 1000 * 60 * 30; // 30 minutos de caché antes de reindexar de MongoDB
 
 // Stop words comunes en español para no contaminar el scoring semántico
 const SPANISH_STOP_WORDS = new Set([
@@ -36,23 +39,57 @@ export function normalizeForSearch(text) {
 }
 
 /**
- * Construye e indexa en memoria los 1.737 clientes de Vionest.
+ * Carga los clientes:
+ * 1. Primero intenta obtenerlos directamente desde MongoDB Atlas (producción / web)
+ * 2. Si MongoDB no está listo, recurre al archivo local de backup
  */
-export function initRAGIndex() {
-  if (miniSearchInstance) {
-    return miniSearchInstance;
+async function loadClientsSource() {
+  try {
+    const col = getClientesCollection();
+    if (col) {
+      console.log('[RAG] 🌐 Obteniendo clientes en vivo desde MongoDB Atlas...');
+      const docs = await col.find({}).toArray();
+      if (docs && docs.length > 0) {
+        console.log(`[RAG] ✅ Obtenidos ${docs.length} clientes desde MongoDB Atlas.`);
+        return docs;
+      }
+    }
+  } catch (dbErr) {
+    console.warn('[RAG] No se pudo leer directamente de MongoDB, verificando respaldo local:', dbErr.message);
   }
 
-  if (!fs.existsSync(BACKUP_CLIENTES_PATH)) {
-    console.warn(`[RAG] Archivo no encontrado: ${BACKUP_CLIENTES_PATH}`);
-    return null;
+  // Respaldo local si existe
+  if (fs.existsSync(BACKUP_CLIENTES_PATH)) {
+    try {
+      console.log('[RAG] 📂 Cargando clientes desde respaldo local...');
+      const raw = fs.readFileSync(BACKUP_CLIENTES_PATH, 'utf-8');
+      return JSON.parse(raw);
+    } catch (fsErr) {
+      console.error('[RAG] Error al leer archivo local:', fsErr.message);
+    }
+  }
+
+  return [];
+}
+
+/**
+ * Construye e indexa en memoria los clientes para búsqueda ultra rápida.
+ */
+export async function initRAGIndex({ force = false } = {}) {
+  const now = Date.now();
+  if (miniSearchInstance && !force && (now - lastIndexTime < CACHE_TTL_MS)) {
+    return miniSearchInstance;
   }
 
   console.log('[RAG] 🚀 Inicializando motor RAG semántico (BM25 + Ponderación)...');
   const startTime = Date.now();
 
-  const raw = fs.readFileSync(BACKUP_CLIENTES_PATH, 'utf-8');
-  allClientsList = JSON.parse(raw);
+  allClientsList = await loadClientsSource();
+
+  if (!allClientsList || allClientsList.length === 0) {
+    console.warn('[RAG] ⚠️ No se encontraron clientes para indexar.');
+    return null;
+  }
 
   miniSearchInstance = new MiniSearch({
     idField: 'id',
@@ -123,6 +160,7 @@ export function initRAGIndex() {
   }
 
   miniSearchInstance.addAll(documents);
+  lastIndexTime = Date.now();
 
   const duration = Date.now() - startTime;
   console.log(`[RAG] ✅ Índice RAG construido: ${documents.length} clientes listos en ${duration}ms.`);
@@ -132,31 +170,27 @@ export function initRAGIndex() {
 
 /**
  * Búsqueda RAG Híbrida:
- * 1. Búsqueda exacta de subcadena en nombres de empresas (prioridad máxima)
- * 2. Búsqueda semántica BM25 con MiniSearch sin ruido de stop words
- * 3. Filtros especializados para Escuadrón y Ubicación
+ * 1. Coincidencia directa en 'Nombre de la Empresa'
+ * 2. Búsqueda semántica BM25 con MiniSearch
  */
-export function retrieveRelevantClients(userQuery, limit = 5) {
-  const index = initRAGIndex();
+export async function retrieveRelevantClients(userQuery, limit = 5) {
+  const index = await initRAGIndex();
   if (!index) return [];
 
   const cleanQuery = normalizeForSearch(userQuery);
   if (!cleanQuery) return [];
 
-  // Extraer términos significativos quitando stop words
   const terms = cleanQuery
     .split(/\s+/)
     .filter(w => !SPANISH_STOP_WORDS.has(w) && w.length >= 2);
 
   const directMatches = [];
 
-  // 1. Paso rápido: Coincidencia directa en 'Nombre de la Empresa'
-  // Si el usuario dijo "Aceite Rogil" o "Torgus", buscar si alguna empresa contiene esos términos
+  // 1. Coincidencia directa en 'Nombre de la Empresa'
   for (const c of allClientsList) {
     const normName = normalizeForSearch(c['Nombre de la Empresa']);
     if (!normName) continue;
 
-    // Si coincide frase completa o término raro (ej: "rogil", "torgus", "embragues valero")
     if (cleanQuery.includes(normName) || (normName.length > 4 && cleanQuery.includes(normName))) {
       directMatches.push({ score: 9999, doc: c, matchType: 'EXACT_NAME' });
       continue;
@@ -173,7 +207,7 @@ export function retrieveRelevantClients(userQuery, limit = 5) {
     return directMatches.slice(0, limit);
   }
 
-  // 2. Paso BM25 semántico con MiniSearch
+  // 2. Búsqueda BM25 semántica
   const searchResults = index.search(terms.join(' '));
 
   if (searchResults.length === 0 && terms.length > 0) {
@@ -193,10 +227,10 @@ export function retrieveRelevantClients(userQuery, limit = 5) {
 }
 
 /**
- * Filtro semántico por Escuadrón o Zona (ideal para conteos)
+ * Filtro semántico por Escuadrón o Zona directamente desde los datos sincronizados
  */
-export function filterClientsByCriteria({ field, value, limit = 50 }) {
-  initRAGIndex();
+export async function filterClientsByCriteria({ field, value, limit = 50 }) {
+  await initRAGIndex();
   const normVal = normalizeForSearch(value);
 
   const matched = allClientsList.filter(c => {
