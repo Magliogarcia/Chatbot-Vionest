@@ -89,33 +89,47 @@ export async function deleteUserConversation(conversationId, userId) {
   return result.deletedCount > 0;
 }
 
-export async function addMessageToConversation(conversationId, userId, messageObj, updatedContext = undefined) {
+export async function addMessageToConversation(conversationId, userIdOrMessage, maybeMessage, maybeContext) {
   const col = getConversationsCollection();
   let queryId;
   try {
     queryId = new ObjectId(conversationId);
   } catch {
     return false;
+  }
+
+  // Detectar si se llamó como (convId, msg) o como (convId, userId, msg, context)
+  let actualMessage = maybeMessage;
+  let actualUserId = null;
+  let actualContext = maybeContext;
+
+  if (userIdOrMessage && typeof userIdOrMessage === 'object' && userIdOrMessage.sender) {
+    // Llamado como addMessageToConversation(conversationId, messageObj, updatedContext)
+    actualMessage = userIdOrMessage;
+    actualContext = maybeMessage;
+  } else if (typeof userIdOrMessage === 'string') {
+    actualUserId = userIdOrMessage;
   }
 
   const updateDoc = {
-    $push: { messages: messageObj },
+    $push: { messages: actualMessage },
     $set: { updatedAt: new Date() }
   };
 
-  if (updatedContext !== undefined) {
-    updateDoc.$set.currentClientContext = updatedContext;
+  if (actualContext !== undefined) {
+    updateDoc.$set.currentClientContext = actualContext;
   }
 
-  const result = await col.updateOne(
-    { _id: queryId, userId: userId.toString() },
-    updateDoc
-  );
+  const filter = { _id: queryId };
+  if (actualUserId) {
+    filter.userId = actualUserId.toString();
+  }
 
+  const result = await col.updateOne(filter, updateDoc);
   return result.modifiedCount > 0;
 }
 
-export async function updateConversationTitle(conversationId, userId, newTitle) {
+export async function updateConversationTitle(conversationId, userIdOrTitle, maybeTitle) {
   const col = getConversationsCollection();
   let queryId;
   try {
@@ -124,8 +138,14 @@ export async function updateConversationTitle(conversationId, userId, newTitle) 
     return false;
   }
 
+  const newTitle = (maybeTitle || userIdOrTitle || '').toString();
+  const filter = { _id: queryId };
+  if (maybeTitle) {
+    filter.userId = userIdOrTitle.toString();
+  }
+
   await col.updateOne(
-    { _id: queryId, userId: userId.toString() },
+    filter,
     { $set: { title: newTitle.slice(0, 50), updatedAt: new Date() } }
   );
   return true;

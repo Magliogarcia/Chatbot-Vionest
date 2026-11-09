@@ -17,6 +17,7 @@ import {
   formatMatchesDisambiguation
 } from './deterministicParser.js';
 import { parseQueryWithAI, draftResponseWithAI } from './openRouterService.js';
+import { retrieveRelevantClients, filterClientsByCriteria } from './ragService.js';
 import { config } from '../config/index.js';
 
 export async function processChatMessage({ userId, conversationId, messageText }) {
@@ -49,10 +50,17 @@ export async function processChatMessage({ userId, conversationId, messageText }
   if (currentContext?.pendingMatches?.length > 0) {
     const selected = parseOptionSelection(cleanInput, currentContext.pendingMatches);
     if (selected) {
-      const clientDoc = await getClientById(selected._id);
+      let clientDoc = null;
+      if (selected._id) {
+        clientDoc = await getClientById(selected._id);
+      }
+      if (!clientDoc && selected.doc) {
+        clientDoc = selected.doc;
+      }
+
       if (clientDoc) {
         updatedContext = {
-          clientId: clientDoc._id.toString(),
+          clientId: String(clientDoc._id?.$oid || clientDoc._id?.toString() || clientDoc.id || clientDoc._id || ''),
           clientName: clientDoc['Nombre de la Empresa'],
           pendingMatches: null
         };
@@ -71,38 +79,31 @@ export async function processChatMessage({ userId, conversationId, messageText }
     }
   }
 
-  // 3. Procesar consulta principal con comprensión inteligente de la IA
+  // 3. Procesar consulta con RAG Pipeline
   if (!assistantText) {
-    // La IA analiza el mensaje primero para entender intención, empresa, escuadrón, etc.
-    let aiPlan = null;
-    if (config.openRouter.apiKey || config.gemini.apiKey) {
-      aiPlan = await parseQueryWithAI(cleanInput, updatedContext);
-    }
-
-    // Fallback ligero determinista si la IA no estuviera disponible
+    // A. Saludo o Ayuda general inmediata
     const detIntent = parseDeterministicQuery(cleanInput, updatedContext);
-    const intent = aiPlan?.intent || detIntent.intent;
-
-    // A. Saludo o Ayuda general
-    if (intent === 'HELP_OR_GREETING') {
-      const aiDraft = await draftResponseWithAI({
+    if (detIntent.intent === 'HELP_OR_GREETING') {
+      assistantText = await draftResponseWithAI({
         userMessage: cleanInput,
         retrievedData: {
-          sistema: 'Vionest Chatbot Interno de Clientes',
-          alcance: 'Consulta conversacional de la base de datos de clientes en MongoDB.'
+          sistema: 'Vionest Chatbot Interno de Clientes (con motor RAG)',
+          alcance: 'Consulta conversacional precisa de 1.737 clientes en MongoDB.'
         },
         queryType: 'GREETING',
         currentClientName: updatedContext?.clientName || null
       });
 
-      assistantText = aiDraft || '¡Hola! Soy el asistente virtual de la base de datos de Vionest. Puedes consultarme datos de cualquier cliente, teléfono, escuadrón o zona.';
+      if (!assistantText) {
+        assistantText = '¡Hola! Soy el asistente virtual de la base de datos de Vionest. Puedes consultarme datos de cualquier cliente, teléfono, escuadrón o zona.';
+      }
     }
 
     // B. Verificación o búsqueda de teléfono
-    else if (intent === 'VERIFY_PHONE' || intent === 'SEARCH_BY_PHONE') {
-      const phone = aiPlan?.phoneNumber || detIntent.phoneNumber;
+    else if (detIntent.intent === 'VERIFY_PHONE' || detIntent.intent === 'SEARCH_BY_PHONE') {
+      const phone = detIntent.phoneNumber;
       if (phone) {
-        if (intent === 'VERIFY_PHONE') {
+        if (detIntent.intent === 'VERIFY_PHONE') {
           const verifResult = await verifyPhoneNumber(phone);
           assistantText = await draftResponseWithAI({
             userMessage: cleanInput,
@@ -122,122 +123,102 @@ export async function processChatMessage({ userId, conversationId, messageText }
       }
     }
 
-    // C. Filtro o conteo por Escuadrón, Ubicación/Zona, Estatus, Halcón, etc.
-    else if (intent === 'FILTER_QUERY' || aiPlan?.filterField || detIntent.filterField) {
-      const filterField = aiPlan?.filterField || detIntent.filterField || 'Escuadrón Asignado';
-      const filterValue = aiPlan?.filterValue || detIntent.filterValue || '';
-
-      const filterRes = await queryClientsByFilter({ filterField, filterValue, limit: 30 });
-      assistantText = await draftResponseWithAI({
-        userMessage: cleanInput,
-        retrievedData: filterRes,
-        queryType: 'FILTER_RESULTS',
-        currentClientName: null
-      });
-    }
-
-    // D. Consulta sobre una Empresa (o empresa en contexto)
+    // C. Recuperación RAG (Retrieval-Augmented Generation)
     if (!assistantText) {
-      // Determinar qué empresa buscar
-      let companyToSearch = aiPlan?.companyName || detIntent.companyName;
+      console.log(`[RAG Pipeline] Ejecutando recuperación para: "${cleanInput}"`);
 
-      // Si no especificó nombre de empresa pero usó pronombres o hay contexto activo
-      let clientDoc = null;
-      if (!companyToSearch && (aiPlan?.useCurrentContext || detIntent.useCurrentContext) && updatedContext?.clientId) {
-        clientDoc = await getClientById(updatedContext.clientId);
-      }
+      // Si la consulta pregunta explícitamente por conteo o filtro general (ej: cuántos, zona, escuadrón)
+      const isFilterIntent = detIntent.intent === 'FILTER_QUERY' && detIntent.filterField && detIntent.filterValue;
 
-      // Si no tenemos documento aún, buscar la empresa en MongoDB
-      if (!clientDoc && companyToSearch) {
-        const searchResult = await searchClientsByName(companyToSearch);
-        if (searchResult.exactMatch) {
-          clientDoc = searchResult.exactMatch;
-        } else if (searchResult.matches.length === 1) {
-          clientDoc = await getClientById(searchResult.matches[0]._id);
-        } else if (searchResult.matches.length > 1) {
-          // Si hay varias coincidencias pero una de ellas es casi idéntica a lo buscado
-          const cleanSearch = companyToSearch.toLowerCase().trim();
-          const nearExact = searchResult.matches.find(m => m.nombreEmpresa.toLowerCase().trim().includes(cleanSearch) || cleanSearch.includes(m.nombreEmpresa.toLowerCase().trim()));
-          if (nearExact && searchResult.matches.length <= 3) {
-            clientDoc = await getClientById(nearExact._id);
-          } else {
-            updatedContext = {
-              ...(updatedContext || {}),
-              pendingMatches: searchResult.matches
-            };
-            returnedMatches = searchResult.matches;
-            assistantText = formatMatchesDisambiguation(searchResult.matches);
-          }
-        }
-      }
+      if (isFilterIntent) {
+        console.log(`[RAG Pipeline] 📊 Ejecutando filtro prioritario para: ${detIntent.filterField} = "${detIntent.filterValue}"`);
+        const filterRes = filterClientsByCriteria({ field: detIntent.filterField, value: detIntent.filterValue, limit: 10 });
 
-      // Si tenemos el documento del cliente, la IA redacta la respuesta usando toda la info
-      if (clientDoc && !assistantText) {
-        updatedContext = {
-          clientId: clientDoc._id.toString(),
-          clientName: clientDoc['Nombre de la Empresa'],
-          pendingMatches: null
-        };
-
-        const aiDraft = await draftResponseWithAI({
+        assistantText = await draftResponseWithAI({
           userMessage: cleanInput,
-          retrievedData: clientDoc,
-          queryType: 'CLIENT_DETAILS',
-          currentClientName: clientDoc['Nombre de la Empresa']
+          retrievedData: {
+            criterio: `${detIntent.filterField}: ${detIntent.filterValue}`,
+            totalEncontrados: filterRes.total,
+            ejemplosNegocios: filterRes.results.slice(0, 5).map(c => ({
+              nombre: c['Nombre de la Empresa'],
+              ubicacion: c['Ubicación exacta'] || 'No especificada',
+              escuadron: c['Escuadrón Asignado'] || 'No especificado'
+            }))
+          },
+          queryType: 'FILTER_RESULTS',
+          currentClientName: null
         });
-
-        if (aiDraft) {
-          assistantText = aiDraft;
-        }
       }
 
-      // Si aún no hay respuesta y el usuario hizo una pregunta de filtro o búsqueda libre
+      // De lo contrario, buscar por coincidencia RAG de empresa o semántica
       if (!assistantText) {
-        // Intentar una búsqueda general permisiva con el texto del usuario
-        const generalFilter = await queryClientsByFilter({ filterField: 'Nombre de la Empresa', filterValue: companyToSearch || cleanInput, limit: 10 });
-        if (generalFilter.total > 0) {
-          if (generalFilter.total === 1) {
-            const singleDoc = await getClientById(generalFilter.results[0]._id);
-            if (singleDoc) {
-              updatedContext = {
-                clientId: singleDoc._id.toString(),
-                clientName: singleDoc['Nombre de la Empresa'],
-                pendingMatches: null
-              };
-              assistantText = await draftResponseWithAI({
-                userMessage: cleanInput,
-                retrievedData: singleDoc,
-                queryType: 'CLIENT_DETAILS',
-                currentClientName: singleDoc['Nombre de la Empresa']
-              });
-            }
-          } else {
+        const ragMatches = retrieveRelevantClients(cleanInput, 5);
+
+        // Caso C.1: El RAG encontró una coincidencia de altísima confianza (Nombre exacto o muy fuerte)
+        if (ragMatches.length > 0 && (ragMatches[0].score >= 5000 || ragMatches[0].matchType === 'EXACT_NAME')) {
+          const topClient = ragMatches[0].doc;
+          console.log(`[RAG Pipeline] 🎯 Coincidencia de alta confianza encontrada: "${topClient['Nombre de la Empresa']}"`);
+
+          updatedContext = {
+            clientId: String(topClient._id?.$oid || topClient._id?.toString() || topClient.id || topClient._id || ''),
+            clientName: topClient['Nombre de la Empresa'],
+            pendingMatches: null
+          };
+
+          assistantText = await draftResponseWithAI({
+            userMessage: cleanInput,
+            retrievedData: topClient,
+            queryType: 'CLIENT_DETAILS',
+            currentClientName: topClient['Nombre de la Empresa']
+          });
+        }
+        // Caso C.2: Si hay resultados semánticos relevantes recuperados por el RAG
+        else if (ragMatches.length > 0) {
+          console.log(`[RAG Pipeline] 💡 Pasando ${ragMatches.length} documentos recuperados a la IA`);
+          
+          if (ragMatches.length === 1 || (ragMatches[0].score > (ragMatches[1]?.score || 0) * 1.5)) {
+            const singleDoc = ragMatches[0].doc;
+            updatedContext = {
+              clientId: String(singleDoc._id?.$oid || singleDoc._id?.toString() || singleDoc.id || singleDoc._id || ''),
+              clientName: singleDoc['Nombre de la Empresa'],
+              pendingMatches: null
+            };
+
             assistantText = await draftResponseWithAI({
               userMessage: cleanInput,
-              retrievedData: generalFilter,
-              queryType: 'FILTER_RESULTS',
-              currentClientName: null
+              retrievedData: singleDoc,
+              queryType: 'CLIENT_DETAILS',
+              currentClientName: singleDoc['Nombre de la Empresa']
+            });
+          } else {
+            const candidates = ragMatches.map(r => r.doc);
+            assistantText = await draftResponseWithAI({
+              userMessage: cleanInput,
+              retrievedData: {
+                clientesCoincidentes: candidates
+              },
+              queryType: 'SEMANTIC_MATCHES',
+              currentClientName: updatedContext?.clientName || null
             });
           }
         }
       }
     }
 
-    // E. Si después de todo no se pudo recuperar nada específico, dejar que la IA explique o responda conversacionalmente
+    // D. Si nada de lo anterior respondió, respuesta explicativa
     if (!assistantText) {
       assistantText = await draftResponseWithAI({
         userMessage: cleanInput,
         retrievedData: {
-          mensaje: 'No se encontraron registros específicos en la base de datos para los criterios ingresados.',
-          consulta: cleanInput,
-          contextoPrevio: updatedContext?.clientName || null
+          mensaje: 'No se encontraron registros en la base de datos que coincidan con la consulta.',
+          consulta: cleanInput
         },
-        queryType: 'UNKNOWN_OR_NOT_FOUND',
+        queryType: 'NOT_FOUND',
         currentClientName: updatedContext?.clientName || null
       });
 
       if (!assistantText) {
-        assistantText = `No encontré registros en la base de datos que coincidan exactamente con tu consulta. Puedes indicarme el nombre de la empresa, el número telefónico, o el escuadrón que deseas consultar.`;
+        assistantText = 'No encontré registros en la base de datos de Vionest que coincidan con tu búsqueda. Puedes especificar el nombre de la empresa, el escuadrón o la ubicación.';
       }
     }
   }
@@ -254,7 +235,6 @@ export async function processChatMessage({ userId, conversationId, messageText }
     returnedMatches
   });
 
-  // Si es nueva conversación y tiene cliente en contexto, actualizar título amigable
   if (isNewConversation && updatedContext?.clientName) {
     await updateConversationTitle(conversation._id, `Consulta: ${updatedContext.clientName}`);
   }

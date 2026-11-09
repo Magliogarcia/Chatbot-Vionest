@@ -28,3 +28,6 @@ Thumbs.db
 .idea/
 
 .agents/
+
+# Backups y datos locales sensibles
+server/data/

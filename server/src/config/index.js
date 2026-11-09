@@ -9,8 +9,8 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const defaultModels = [
-  'dots-studio/dots-3-note-preview:free',
-  'google/gemma-4-26b-a4b-it:free'
+  'liquid/lfm-3-1.7b:free',
+  'dots-studio/dots-3-note-preview:free'
 ];
 
 const parsedModels = process.env.OPENROUTER_MODELS
