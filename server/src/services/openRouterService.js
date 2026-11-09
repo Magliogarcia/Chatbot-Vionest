@@ -2,80 +2,9 @@ import { config } from '../config/index.js';
 import { GoogleGenAI } from '@google/genai';
 
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
-const DEEPSEEK_ENDPOINT = 'https://api.deepseek.com/chat/completions';
 
 /**
- * Realiza una llamada al modelo oficial de DeepSeek (Agente 1 Principal)
- */
-async function callDeepSeekModel({ systemInstruction, prompt, isJson, timeoutMs }) {
-  if (!config.deepseek.apiKey) {
-    throw new Error('DEEPSEEK_API_KEY no configurada');
-  }
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => {
-    controller.abort(new Error(`Timeout de ${timeoutMs / 1000}s excedido para DeepSeek`));
-  }, timeoutMs);
-
-  const startTime = Date.now();
-
-  try {
-    const messages = [
-      { role: 'system', content: systemInstruction },
-      { role: 'user', content: prompt }
-    ];
-
-    const bodyPayload = {
-      model: config.deepseek.model || 'deepseek-chat',
-      messages,
-      temperature: isJson ? 0.1 : 0.3
-    };
-
-    if (isJson) {
-      bodyPayload.response_format = { type: 'json_object' };
-    }
-
-    const res = await fetch(DEEPSEEK_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${config.deepseek.apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(bodyPayload),
-      signal: controller.signal
-    });
-
-    clearTimeout(timer);
-
-    if (!res.ok) {
-      const errorText = await res.text().catch(() => '');
-      throw new Error(`HTTP ${res.status}: ${errorText.slice(0, 250)}`);
-    }
-
-    const data = await res.json();
-    const content = data?.choices?.[0]?.message?.content;
-
-    if (!content) {
-      throw new Error('Respuesta vacía de DeepSeek');
-    }
-
-    const durationMs = Date.now() - startTime;
-    return { text: content.trim(), modelUsed: `deepseek/${config.deepseek.model}`, durationMs };
-  } catch (err) {
-    clearTimeout(timer);
-    const durationMs = Date.now() - startTime;
-    const isTimeout = err.name === 'AbortError' || err.message?.includes('Timeout');
-    throw {
-      isTimeout,
-      model: 'deepseek-chat',
-      durationMs,
-      message: isTimeout ? `Timeout excedido (${timeoutMs / 1000}s)` : err.message
-    };
-  }
-}
-
-/**
- * Realiza una llamada a un modelo de OpenRouter con timeout estricto mediante AbortController.
+ * Realiza una llamada a un modelo de OpenRouter con timeout estricto.
  */
 async function callOpenRouterModel({ model, systemInstruction, prompt, isJson, timeoutMs }) {
   const controller = new AbortController();
@@ -143,8 +72,8 @@ async function callOpenRouterModel({ model, systemInstruction, prompt, isJson, t
 }
 
 /**
- * Realiza una llamada a Gemini Oficial (Google Gen AI) como Agente de Respaldo 3
- * Soporta fallback automático entre modelos oficiales gratuitos si alguno satura su cuota
+ * Realiza una llamada a Gemini Oficial (Google Gen AI) como Agente de Respaldo Final.
+ * Soporta fallback automático entre modelos gratuitos si alguno satura su cuota diaria.
  */
 async function callGeminiOfficial({ systemInstruction, prompt, isJson, timeoutMs }) {
   if (!config.gemini.apiKey) {
@@ -153,8 +82,8 @@ async function callGeminiOfficial({ systemInstruction, prompt, isJson, timeoutMs
 
   const startTime = Date.now();
   const ai = new GoogleGenAI({ apiKey: config.gemini.apiKey });
-  
-  // Lista de modelos oficiales de Google con cuota gratuita independiente
+
+  // Modelos oficiales de Google con cuota gratuita independiente por modelo
   const configuredModel = config.gemini.model || 'gemini-3.5-flash-lite';
   const candidateModels = [
     configuredModel,
@@ -206,47 +135,22 @@ async function callGeminiOfficial({ systemInstruction, prompt, isJson, timeoutMs
 
 /**
  * Ejecuta la llamada en cascada secuencial (Fallback):
- * 1. Agente 1: DeepSeek Oficial (deepseek-chat)
- * 2. Agente 2: OpenRouter (liquid/lfm-3-1.7b:free / dots-studio/dots-3-note-preview:free)
- * 3. Agente 3: Google Gemini Oficial (gemini-3.8-flash)
+ *
+ * Grupo 1: OpenRouter (5 modelos gratuitos, 20s c/u)
+ * Grupo 2: Google Gemini Oficial (multi-modelo con rotación automática, 25s)
+ *
+ * Si todos fallan, retorna null (el chatService usa respuestas deterministas de emergencia).
  */
 export async function generateWithFallback({ systemInstruction, prompt, isJson = false }) {
   const models = config.openRouter.models;
-  const timeoutPerAgent = config.openRouter.timeoutMs || 10000;
-  const maxTotalTimeout = config.openRouter.maxTotalTimeoutMs || 65000;
+  const timeoutPerAgent = config.openRouter.timeoutMs || 20000;
+  const maxTotalTimeout = config.openRouter.maxTotalTimeoutMs || 120000;
   const cascadeStartTime = Date.now();
 
   const failedAttempts = [];
 
   // ==========================================
-  // 1. Probar Agente 1: DeepSeek Oficial (40s)
-  // ==========================================
-  if (config.deepseek.apiKey) {
-    const elapsed = Date.now() - cascadeStartTime;
-    const remainingTime = Math.max(1000, maxTotalTimeout - elapsed);
-    const deepseekTimeout = Math.min(config.deepseek.timeoutMs || 40000, remainingTime);
-
-    console.log(`[Cascada AI] 🤖 [Agente 1 - Principal] DeepSeek: "${config.deepseek.model}" (Timeout: ${deepseekTimeout / 1000}s)...`);
-
-    try {
-      const result = await callDeepSeekModel({
-        systemInstruction,
-        prompt,
-        isJson,
-        timeoutMs: deepseekTimeout
-      });
-
-      console.log(`[Cascada AI] ✅ [Agente 1] DeepSeek respondió con éxito en ${result.durationMs}ms.`);
-      return result;
-    } catch (err) {
-      failedAttempts.push({ agentNumber: 1, model: 'deepseek-chat', reason: err.message, durationMs: err.durationMs });
-      console.warn(`[Cascada AI] ⚠️ [Agente 1] DeepSeek no completó la solicitud (${err.durationMs}ms): ${err.message}.`);
-      console.log(`[Cascada AI] 🔄 Saltando al siguiente agente de respaldo...`);
-    }
-  }
-
-  // ==========================================
-  // 2. Probar Agente 2: Modelos de OpenRouter
+  // 1. Probar modelos de OpenRouter (5 agentes, 20s cada uno)
   // ==========================================
   if (config.openRouter.apiKey) {
     for (let i = 0; i < models.length; i++) {
@@ -261,7 +165,7 @@ export async function generateWithFallback({ systemInstruction, prompt, isJson =
       const remainingTime = maxTotalTimeout - totalElapsed;
       const currentTimeout = Math.min(timeoutPerAgent, remainingTime);
 
-      console.log(`[Cascada AI] 🤖 [Agente 2.${i + 1}] OpenRouter: "${model}" (Timeout: ${currentTimeout / 1000}s)...`);
+      console.log(`[Cascada AI] 🤖 [Agente ${i + 1}/${models.length}] OpenRouter: "${model}" (Timeout: ${currentTimeout / 1000}s)...`);
 
       try {
         const result = await callOpenRouterModel({
@@ -272,25 +176,25 @@ export async function generateWithFallback({ systemInstruction, prompt, isJson =
           timeoutMs: currentTimeout
         });
 
-        console.log(`[Cascada AI] ✅ [Agente 2.${i + 1}] "${model}" respondió con éxito en ${result.durationMs}ms.`);
+        console.log(`[Cascada AI] ✅ [Agente ${i + 1}] "${model}" respondió con éxito en ${result.durationMs}ms.`);
         return result;
       } catch (err) {
-        failedAttempts.push({ agentNumber: `2.${i + 1}`, model, reason: err.message, durationMs: err.durationMs });
-        console.warn(`[Cascada AI] ⚠️ [Agente 2.${i + 1}] "${model}" falló (${err.durationMs}ms): ${err.message}.`);
+        failedAttempts.push({ agentNumber: i + 1, model, reason: err.message, durationMs: err.durationMs });
+        console.warn(`[Cascada AI] ⚠️ [Agente ${i + 1}] "${model}" falló (${err.durationMs}ms): ${err.message}.`);
         console.log(`[Cascada AI] 🔄 Activando siguiente agente en cascada...`);
       }
     }
   }
 
   // ==========================================
-  // 3. Probar Agente 3: Gemini Oficial de Google
+  // 2. Probar Agente de Respaldo Final: Gemini Oficial de Google
   // ==========================================
   if (config.gemini.apiKey) {
     const totalElapsedBeforeGemini = Date.now() - cascadeStartTime;
     const remainingForGemini = Math.max(5000, maxTotalTimeout - totalElapsedBeforeGemini);
     const geminiTimeout = Math.min(config.gemini.timeoutMs || 25000, remainingForGemini);
 
-    console.log(`[Cascada AI] 🤖 [Agente 3 - Respaldo] Google Gemini Oficial: "${config.gemini.model}" (Timeout: ${geminiTimeout / 1000}s)...`);
+    console.log(`[Cascada AI] 🤖 [Respaldo Final] Google Gemini Oficial: "${config.gemini.model}" (Timeout: ${geminiTimeout / 1000}s)...`);
 
     try {
       const geminiResult = await callGeminiOfficial({
@@ -300,16 +204,16 @@ export async function generateWithFallback({ systemInstruction, prompt, isJson =
         timeoutMs: geminiTimeout
       });
 
-      console.log(`[Cascada AI] ✅ [Agente 3] Google Gemini oficial respondió con éxito en ${geminiResult.durationMs}ms.`);
+      console.log(`[Cascada AI] ✅ [Respaldo Final] Google Gemini oficial respondió con éxito en ${geminiResult.durationMs}ms.`);
       return geminiResult;
     } catch (geminiErr) {
       failedAttempts.push({
-        agentNumber: 3,
+        agentNumber: 'Respaldo',
         model: config.gemini.model,
         reason: geminiErr.message,
         durationMs: Date.now() - cascadeStartTime - totalElapsedBeforeGemini
       });
-      console.warn(`[Cascada AI] ⚠️ [Agente 3] Gemini oficial no completó la solicitud: ${geminiErr.message}`);
+      console.warn(`[Cascada AI] ⚠️ [Respaldo Final] Gemini oficial no completó la solicitud: ${geminiErr.message}`);
     }
   }
 
@@ -379,6 +283,7 @@ DIRECTRICES:
 2. NO USES PLANTILLAS PREVIAS NI VOLCADOS EN BRUTO: Habla con naturalidad y profesionalismo.
 3. BASADO 100% EN HECHOS: Usa exclusivamente la información provista en los datos de MongoDB. Si un dato no figura, dilo con naturalidad sin inventar.
 4. IDIOMA: Español fluido y profesional.
+5. FORMATO: Responde en texto plano con formato Markdown cuando sea útil (negritas, listas). NUNCA respondas con bloques de código JSON ni muestres datos crudos del sistema.
 `;
 
   const prompt = `

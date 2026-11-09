@@ -8,9 +8,13 @@ const __dirname = path.dirname(__filename);
 // Cargar variables de entorno desde server/.env
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
+// Modelos gratuitos de OpenRouter (cascada de 5 agentes)
 const defaultModels = [
-  'liquid/lfm-3-1.7b:free',
-  'dots-studio/dots-3-note-preview:free'
+  'google/gemma-4-31b-it:free',
+  'nvidia/nemotron-3.5-lightning:free',
+  'google/gemma-4-26b-a4b-it:free',
+  'recursive/flint-v1.0:free',
+  'cohere/north-mini-code:free'
 ];
 
 const parsedModels = process.env.OPENROUTER_MODELS
@@ -32,16 +36,11 @@ export const config = {
     initialUsername: process.env.ADMIN_INITIAL_USERNAME || 'admin',
     initialPassword: process.env.ADMIN_INITIAL_PASSWORD || '123'
   },
-  deepseek: {
-    apiKey: (process.env.DEEPSEEK_API_KEY || '').trim(),
-    model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
-    timeoutMs: parseInt(process.env.DEEPSEEK_TIMEOUT_MS || '40000', 10)
-  },
   openRouter: {
     apiKey: process.env.OPENROUTER_API_KEY ? process.env.OPENROUTER_API_KEY.trim() : '',
     models: parsedModels.length > 0 ? parsedModels : defaultModels,
-    timeoutMs: parseInt(process.env.OPENROUTER_TIMEOUT_MS || '10000', 10),
-    maxTotalTimeoutMs: 65000
+    timeoutMs: parseInt(process.env.OPENROUTER_TIMEOUT_MS || '20000', 10),
+    maxTotalTimeoutMs: parseInt(process.env.OPENROUTER_MAX_TOTAL_TIMEOUT_MS || '120000', 10)
   },
   gemini: {
     apiKey: (process.env.GEMINI_API_KEY || '').trim(),
