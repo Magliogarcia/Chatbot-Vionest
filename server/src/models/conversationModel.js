@@ -63,6 +63,7 @@ export async function getUserConversationById(conversationId, userId) {
   if (!conv) return null;
 
   return {
+    _id: conv._id.toString(),
     id: conv._id.toString(),
     title: conv.title,
     currentClientContext: conv.currentClientContext,

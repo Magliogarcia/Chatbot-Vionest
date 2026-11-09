@@ -14,7 +14,8 @@ import {
 import {
   parseOptionSelection,
   parseDeterministicQuery,
-  formatMatchesDisambiguation
+  formatMatchesDisambiguation,
+  formatClientDetailsResponse
 } from './deterministicParser.js';
 import { parseQueryWithAI, draftResponseWithAI } from './openRouterService.js';
 import { retrieveRelevantClients, filterClientsByCriteria } from './ragService.js';
@@ -79,10 +80,11 @@ export async function processChatMessage({ userId, conversationId, messageText }
     }
   }
 
-  // 3. Procesar consulta con RAG Pipeline
+  // 3. Procesar consulta con RAG Pipeline y Soporte Contextual
   if (!assistantText) {
-    // A. Saludo o Ayuda general inmediata
     const detIntent = parseDeterministicQuery(cleanInput, updatedContext);
+
+    // A. Saludo o Ayuda general inmediata
     if (detIntent.intent === 'HELP_OR_GREETING') {
       assistantText = await draftResponseWithAI({
         userMessage: cleanInput,
@@ -123,39 +125,71 @@ export async function processChatMessage({ userId, conversationId, messageText }
       }
     }
 
-    // C. Recuperación RAG (Retrieval-Augmented Generation)
+    // C. Si la consulta es un filtro/conteo general (ej: escuadrón, zona)
+    else if (detIntent.intent === 'FILTER_QUERY' && detIntent.filterField && detIntent.filterValue) {
+      console.log(`[RAG Pipeline] 📊 Ejecutando filtro prioritario para: ${detIntent.filterField} = "${detIntent.filterValue}"`);
+      const filterRes = await filterClientsByCriteria({ field: detIntent.filterField, value: detIntent.filterValue, limit: 10 });
+
+      assistantText = await draftResponseWithAI({
+        userMessage: cleanInput,
+        retrievedData: {
+          criterio: `${detIntent.filterField}: ${detIntent.filterValue}`,
+          totalEncontrados: filterRes.total,
+          ejemplosNegocios: filterRes.results.slice(0, 5).map(c => ({
+            nombre: c['Nombre de la Empresa'],
+            ubicacion: c['Ubicación exacta'] || 'No especificada',
+            escuadron: c['Escuadrón Asignado'] || 'No especificado'
+          }))
+        },
+        queryType: 'FILTER_RESULTS',
+        currentClientName: null
+      });
+
+      if (!assistantText) {
+        assistantText = `Se encontraron **${filterRes.total}** empresas con **${detIntent.filterField}: "${detIntent.filterValue}"**:\n\n` +
+          filterRes.results.slice(0, 10).map((c, i) => `**${i + 1}.** ${c['Nombre de la Empresa']} (${c['Ubicación exacta'] || 'Sin ubicación'})`).join('\n');
+      }
+    }
+
+    // D. Verificación del Cliente en Contexto Activo
+    // Si ya hay un cliente fijado en la barra azul (ej: "rodamientos m & e"), y la pregunta es sobre él o coincide con su nombre
+    if (!assistantText && updatedContext?.clientId && updatedContext?.clientName) {
+      const normInput = cleanInput.toLowerCase();
+      const normContextName = updatedContext.clientName.toLowerCase();
+      
+      // Palabras significativas del nombre en contexto
+      const contextKeywords = normContextName.split(/[\s&,-]+/).filter(w => w.length >= 3);
+      const isReferencingContext = contextKeywords.some(w => normInput.includes(w)) ||
+        normInput.includes('su ') || normInput.includes('de ellos') || normInput.includes('de el') ||
+        normInput.includes('ubicacion') || normInput.includes('telefono') || normInput.includes('contacto') ||
+        normInput.includes('feedback') || normInput.includes('que sabes') || normInput.includes('cuentame');
+
+      if (isReferencingContext) {
+        console.log(`[RAG Context] 🎯 Usando cliente activo en contexto: "${updatedContext.clientName}"`);
+        const contextDoc = await getClientById(updatedContext.clientId);
+        if (contextDoc) {
+          assistantText = await draftResponseWithAI({
+            userMessage: cleanInput,
+            retrievedData: contextDoc,
+            queryType: 'CLIENT_DETAILS',
+            currentClientName: contextDoc['Nombre de la Empresa']
+          });
+
+          if (!assistantText) {
+            assistantText = formatClientDetailsResponse(contextDoc);
+          }
+        }
+      }
+    }
+
+    // E. Recuperación RAG de Empresas y Términos Semánticos
     if (!assistantText) {
       console.log(`[RAG Pipeline] Ejecutando recuperación para: "${cleanInput}"`);
+      const ragMatches = await retrieveRelevantClients(cleanInput, 5);
 
-      // Si la consulta pregunta explícitamente por conteo o filtro general (ej: cuántos, zona, escuadrón)
-      const isFilterIntent = detIntent.intent === 'FILTER_QUERY' && detIntent.filterField && detIntent.filterValue;
-
-      if (isFilterIntent) {
-        console.log(`[RAG Pipeline] 📊 Ejecutando filtro prioritario para: ${detIntent.filterField} = "${detIntent.filterValue}"`);
-        const filterRes = await filterClientsByCriteria({ field: detIntent.filterField, value: detIntent.filterValue, limit: 10 });
-
-        assistantText = await draftResponseWithAI({
-          userMessage: cleanInput,
-          retrievedData: {
-            criterio: `${detIntent.filterField}: ${detIntent.filterValue}`,
-            totalEncontrados: filterRes.total,
-            ejemplosNegocios: filterRes.results.slice(0, 5).map(c => ({
-              nombre: c['Nombre de la Empresa'],
-              ubicacion: c['Ubicación exacta'] || 'No especificada',
-              escuadron: c['Escuadrón Asignado'] || 'No especificado'
-            }))
-          },
-          queryType: 'FILTER_RESULTS',
-          currentClientName: null
-        });
-      }
-
-      // De lo contrario, buscar por coincidencia RAG de empresa o semántica
-      if (!assistantText) {
-        const ragMatches = await retrieveRelevantClients(cleanInput, 5);
-
-        // Caso C.1: El RAG encontró una coincidencia de altísima confianza (Nombre exacto o muy fuerte)
-        if (ragMatches.length > 0 && (ragMatches[0].score >= 5000 || ragMatches[0].matchType === 'EXACT_NAME')) {
+      if (ragMatches.length > 0) {
+        // Caso E.1: Coincidencia de alta confianza (Nombre exacto o muy fuerte)
+        if (ragMatches[0].score >= 5000 || ragMatches[0].matchType === 'EXACT_NAME') {
           const topClient = ragMatches[0].doc;
           console.log(`[RAG Pipeline] 🎯 Coincidencia de alta confianza encontrada: "${topClient['Nombre de la Empresa']}"`);
 
@@ -171,11 +205,17 @@ export async function processChatMessage({ userId, conversationId, messageText }
             queryType: 'CLIENT_DETAILS',
             currentClientName: topClient['Nombre de la Empresa']
           });
+
+          if (!assistantText) {
+            assistantText = formatClientDetailsResponse(topClient);
+          }
         }
-        // Caso C.2: Si hay resultados semánticos relevantes recuperados por el RAG
-        else if (ragMatches.length > 0) {
+        // Caso E.2: Coincidencias múltiples relevantes (ej: varias empresas de rodamientos)
+        else {
           console.log(`[RAG Pipeline] 💡 Pasando ${ragMatches.length} documentos recuperados a la IA`);
-          
+          const candidates = ragMatches.map(r => r.doc);
+
+          // Si una sola empresa destaca fuertemente
           if (ragMatches.length === 1 || (ragMatches[0].score > (ragMatches[1]?.score || 0) * 1.5)) {
             const singleDoc = ragMatches[0].doc;
             updatedContext = {
@@ -190,28 +230,48 @@ export async function processChatMessage({ userId, conversationId, messageText }
               queryType: 'CLIENT_DETAILS',
               currentClientName: singleDoc['Nombre de la Empresa']
             });
+
+            if (!assistantText) {
+              assistantText = formatClientDetailsResponse(singleDoc);
+            }
           } else {
-            const candidates = ragMatches.map(r => r.doc);
+            // Múltiples empresas relevantes: pasarlas a la IA para que desglose o informe
             assistantText = await draftResponseWithAI({
               userMessage: cleanInput,
               retrievedData: {
-                clientesCoincidentes: candidates
+                totalCoincidencias: candidates.length,
+                empresasEncontradas: candidates.map(c => ({
+                  nombre: c['Nombre de la Empresa'],
+                  ubicacion: c['Ubicación exacta'] || 'No especificada',
+                  escuadron: c['Escuadrón Asignado'] || 'No especificado',
+                  telefono: c['Número telefónico'] || 'No especificado'
+                }))
               },
               queryType: 'SEMANTIC_MATCHES',
               currentClientName: updatedContext?.clientName || null
             });
+
+            if (!assistantText) {
+              assistantText = formatMatchesDisambiguation(candidates.map(c => ({
+                id: c._id?.toString(),
+                nombreEmpresa: c['Nombre de la Empresa'],
+                telefono: c['Número telefónico'],
+                ubicacion: c['Ubicación exacta']
+              })));
+            }
           }
         }
       }
     }
 
-    // D. Si nada de lo anterior respondió, respuesta explicativa
+    // F. Fallback asistido por IA si no hubo coincidencias
     if (!assistantText) {
       assistantText = await draftResponseWithAI({
         userMessage: cleanInput,
         retrievedData: {
           mensaje: 'No se encontraron registros en la base de datos que coincidan con la consulta.',
-          consulta: cleanInput
+          consulta: cleanInput,
+          contextoActivo: updatedContext?.clientName || null
         },
         queryType: 'NOT_FOUND',
         currentClientName: updatedContext?.clientName || null
@@ -224,23 +284,29 @@ export async function processChatMessage({ userId, conversationId, messageText }
   }
 
   // 4. Persistir mensaje del usuario y respuesta del asistente
-  await addMessageToConversation(conversation._id, {
+  const targetConvId = (conversation._id || conversation.id || conversationId).toString();
+
+  await addMessageToConversation(targetConvId, {
     sender: 'user',
     text: cleanInput
   });
 
-  const savedAssistantMsg = await addMessageToConversation(conversation._id, {
-    sender: 'assistant',
-    text: assistantText,
-    returnedMatches
-  });
+  const savedAssistantMsg = await addMessageToConversation(
+    targetConvId,
+    {
+      sender: 'assistant',
+      text: assistantText,
+      returnedMatches
+    },
+    updatedContext
+  );
 
   if (isNewConversation && updatedContext?.clientName) {
-    await updateConversationTitle(conversation._id, `Consulta: ${updatedContext.clientName}`);
+    await updateConversationTitle(targetConvId, `Consulta: ${updatedContext.clientName}`);
   }
 
   return {
-    conversationId: conversation._id.toString(),
+    conversationId: targetConvId,
     userMessage: {
       text: cleanInput,
       createdAt: new Date()

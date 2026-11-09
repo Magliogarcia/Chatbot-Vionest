@@ -144,6 +144,7 @@ async function callOpenRouterModel({ model, systemInstruction, prompt, isJson, t
 
 /**
  * Realiza una llamada a Gemini Oficial (Google Gen AI) como Agente de Respaldo 3
+ * Soporta fallback automático entre modelos oficiales gratuitos si alguno satura su cuota
  */
 async function callGeminiOfficial({ systemInstruction, prompt, isJson, timeoutMs }) {
   if (!config.gemini.apiKey) {
@@ -152,32 +153,55 @@ async function callGeminiOfficial({ systemInstruction, prompt, isJson, timeoutMs
 
   const startTime = Date.now();
   const ai = new GoogleGenAI({ apiKey: config.gemini.apiKey });
-  const modelName = config.gemini.model || 'gemini-3.8-flash';
-
-  const timeoutPromise = new Promise((_, reject) => {
-    setTimeout(() => reject(new Error(`Timeout de ${timeoutMs / 1000}s excedido para ${modelName}`)), timeoutMs);
-  });
-
-  const fullPrompt = `${systemInstruction}\n\n${prompt}`;
   
-  const generatePromise = ai.models.generateContent({
-    model: modelName,
-    contents: fullPrompt,
-    config: {
-      temperature: isJson ? 0.1 : 0.4,
-      ...(isJson ? { responseMimeType: 'application/json' } : {})
+  // Lista de modelos oficiales de Google con cuota gratuita independiente
+  const configuredModel = config.gemini.model || 'gemini-3.5-flash-lite';
+  const candidateModels = [
+    configuredModel,
+    'gemini-3.5-flash',
+    'gemini-3.1-flash-lite',
+    'gemini-3.8-flash'
+  ].filter((m, idx, arr) => arr.indexOf(m) === idx);
+
+  let lastError = null;
+
+  for (const modelName of candidateModels) {
+    const elapsed = Date.now() - startTime;
+    const remainingTime = timeoutMs - elapsed;
+    if (remainingTime <= 1000) break;
+
+    try {
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error(`Timeout de ${Math.round(remainingTime / 1000)}s excedido para ${modelName}`)), remainingTime);
+      });
+
+      const fullPrompt = `${systemInstruction}\n\n${prompt}`;
+      const generatePromise = ai.models.generateContent({
+        model: modelName,
+        contents: fullPrompt,
+        config: {
+          temperature: isJson ? 0.1 : 0.4,
+          ...(isJson ? { responseMimeType: 'application/json' } : {})
+        }
+      });
+
+      const response = await Promise.race([generatePromise, timeoutPromise]);
+      const text = response?.text;
+
+      if (!text) {
+        throw new Error(`Respuesta vacía de Gemini (${modelName})`);
+      }
+
+      const durationMs = Date.now() - startTime;
+      return { text: text.trim(), modelUsed: `google/${modelName} (oficial)`, durationMs };
+    } catch (err) {
+      lastError = err;
+      const isQuota = err.message?.includes('RESOURCE_EXHAUSTED') || err.message?.includes('429');
+      console.warn(`[Cascada AI] ⚠️ Gemini "${modelName}" no disponible (${isQuota ? 'cuota saturada' : err.message?.slice(0, 80)}). Probando variante...`);
     }
-  });
-
-  const response = await Promise.race([generatePromise, timeoutPromise]);
-  const text = response?.text;
-
-  if (!text) {
-    throw new Error('Respuesta vacía de Gemini oficial');
   }
 
-  const durationMs = Date.now() - startTime;
-  return { text: text.trim(), modelUsed: `google/${modelName} (oficial)`, durationMs };
+  throw lastError || new Error('No se pudo obtener respuesta de ningún modelo de Gemini');
 }
 
 /**
@@ -263,8 +287,8 @@ export async function generateWithFallback({ systemInstruction, prompt, isJson =
   // ==========================================
   if (config.gemini.apiKey) {
     const totalElapsedBeforeGemini = Date.now() - cascadeStartTime;
-    const remainingForGemini = Math.max(1000, maxTotalTimeout - totalElapsedBeforeGemini);
-    const geminiTimeout = Math.min(config.gemini.timeoutMs || 10000, remainingForGemini);
+    const remainingForGemini = Math.max(5000, maxTotalTimeout - totalElapsedBeforeGemini);
+    const geminiTimeout = Math.min(config.gemini.timeoutMs || 25000, remainingForGemini);
 
     console.log(`[Cascada AI] 🤖 [Agente 3 - Respaldo] Google Gemini Oficial: "${config.gemini.model}" (Timeout: ${geminiTimeout / 1000}s)...`);
 
