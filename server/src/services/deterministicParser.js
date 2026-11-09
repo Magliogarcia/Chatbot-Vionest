@@ -43,7 +43,8 @@ export function parseDeterministicQuery(message, currentContext) {
   const cleanPhone = cleanPhoneNumber(message);
 
   // 1. Saludos y ayuda
-  if (/^(hola|buenos dias|buenas tardes|buenas noches|que puedes hacer|ayuda|menu)$/i.test(norm)) {
+  if (/^(hola|buenos dias|buenas tardes|buenas noches|que puedes hacer|que haces|que es lo que haces|como funcionas|quien eres|para que sirves|ayuda|menu)$/i.test(norm) ||
+      norm.includes('que haces') || norm.includes('que puedes hacer') || norm.includes('como funcionas') || norm.includes('quien eres')) {
     return {
       intent: 'HELP_OR_GREETING'
     };
@@ -74,10 +75,10 @@ export function parseDeterministicQuery(message, currentContext) {
   }
 
   // 4. Filtro por Escuadrón (ej: "a cargo del escuadron Cardenal", "escuadron 2", "del escuadron Condor")
-  const escuadronMatch = message.match(/escuadr[oó]n\s*([0-9a-zA-ZáéíóúÁÉÍÓÚ\s\(\)]+)/i);
+  const escuadronMatch = message.match(/escuadr[oó]n\s*([0-9a-zA-ZáéíóúÁÉÍÓÚ\s\(\)\?]+)/i);
   if (escuadronMatch) {
     let cleanVal = escuadronMatch[1]
-      .replace(/[\(\)]/g, '')
+      .replace(/[\(\)\?\!\.,]/g, '')
       .replace(/^(?:asignado|cargo|del|de|al)\s+/i, '')
       .trim();
     // Si quedó algo como "Cardenal", "4", "2 Cóndor"

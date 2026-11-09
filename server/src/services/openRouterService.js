@@ -189,18 +189,18 @@ async function callGeminiOfficial({ systemInstruction, prompt, isJson, timeoutMs
 export async function generateWithFallback({ systemInstruction, prompt, isJson = false }) {
   const models = config.openRouter.models;
   const timeoutPerAgent = config.openRouter.timeoutMs || 10000;
-  const maxTotalTimeout = config.openRouter.maxTotalTimeoutMs || 45000;
+  const maxTotalTimeout = config.openRouter.maxTotalTimeoutMs || 65000;
   const cascadeStartTime = Date.now();
 
   const failedAttempts = [];
 
   // ==========================================
-  // 1. Probar Agente 1: DeepSeek Oficial (20s)
+  // 1. Probar Agente 1: DeepSeek Oficial (40s)
   // ==========================================
   if (config.deepseek.apiKey) {
     const elapsed = Date.now() - cascadeStartTime;
     const remainingTime = Math.max(1000, maxTotalTimeout - elapsed);
-    const deepseekTimeout = Math.min(config.deepseek.timeoutMs || 20000, remainingTime);
+    const deepseekTimeout = Math.min(config.deepseek.timeoutMs || 40000, remainingTime);
 
     console.log(`[Cascada AI] 🤖 [Agente 1 - Principal] DeepSeek: "${config.deepseek.model}" (Timeout: ${deepseekTimeout / 1000}s)...`);
 

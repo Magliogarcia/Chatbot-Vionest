@@ -231,7 +231,11 @@ export async function retrieveRelevantClients(userQuery, limit = 5) {
  */
 export async function filterClientsByCriteria({ field, value, limit = 50 }) {
   await initRAGIndex();
-  const normVal = normalizeForSearch(value);
+  let cleanValue = String(value || '')
+    .replace(/[\(\)\?\!\.,]/g, '')
+    .replace(/^el\s+/i, '')
+    .trim();
+  const normVal = normalizeForSearch(cleanValue);
 
   const matched = allClientsList.filter(c => {
     let target = '';
