@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bot, Sparkles, AlertTriangle, RefreshCw, XCircle, Square } from 'lucide-react';
+import { Bot, Sparkles, AlertTriangle, RefreshCw, XCircle } from 'lucide-react';
 
 const THINKING_PHRASES = [
   'Pensando...',
@@ -44,7 +44,7 @@ export function ThinkingIndicator({ onRetry, onCancel, lastUserQuery }) {
       <div className="flex-1 max-w-[90%] md:max-w-[75%] space-y-2">
         {/* Burbuja Principal Dinámica estilo Claude */}
         <div className="bg-white border border-slate-200/90 rounded-2xl rounded-tl-xs px-4 py-3 shadow-[0_2px_10px_rgba(0,0,0,0.04)]">
-          <div className="flex items-center justify-between gap-3 mb-1.5">
+          <div className="flex items-center justify-between gap-3 mb-1">
             <div className="flex items-center gap-2">
               <Sparkles className="w-3.5 h-3.5 text-[#2bace2] animate-spin" style={{ animationDuration: '3s' }} />
               <span className="text-xs font-bold text-[#1b275d] tracking-wide">
@@ -57,23 +57,9 @@ export function ThinkingIndicator({ onRetry, onCancel, lastUserQuery }) {
                   : 'Procesando en cascada'}
               </span>
             </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-mono text-slate-400 font-semibold bg-slate-100 px-2 py-0.5 rounded-full">
-                {elapsedSeconds}s
-              </span>
-              {onCancel && (
-                <button
-                  type="button"
-                  onClick={onCancel}
-                  className="flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 rounded-md transition-all cursor-pointer shadow-2xs active:scale-95"
-                  title="Cancelar consulta en curso"
-                >
-                  <Square className="w-2.5 h-2.5 fill-current" />
-                  <span>Cancelar</span>
-                </button>
-              )}
-            </div>
+            <span className="text-[11px] font-mono text-slate-400 font-semibold bg-slate-100 px-2 py-0.5 rounded-full">
+              {elapsedSeconds}s
+            </span>
           </div>
 
           {/* Frase animada rotativa */}
