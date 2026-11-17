@@ -165,24 +165,27 @@ export function parseDeterministicQuery(message, currentContext) {
 }
 
 function extractRequestedField(norm) {
-  if (norm.includes('telefono') || norm.includes('numero')) return 'Número telefónico';
+  if (norm.includes('desarrollador') || norm.includes('programador') || norm.includes('developer') || norm.includes('dev')) return 'Desarrollador Asignado';
+  if (norm.includes('telefono') || norm.includes('numero') || norm.includes('celular')) return 'Número telefónico';
   if (norm.includes('demo')) return 'URL Demo';
-  if (norm.includes('repositorio')) return 'URL Repositorio';
-  if (norm.includes('investigador')) return 'Investigador Asignado';
+  if (norm.includes('repositorio') || norm.includes('github') || norm.includes('repo')) return 'URL Repositorio';
+  if (norm.includes('investigador') || norm.includes('quien investigo')) return 'Investigador Asignado';
   if (norm.includes('halcon') || norm.includes('agente asignado') || norm.includes('agente')) return 'Halcón Asignado';
-  if (norm.includes('observaciones')) return 'Observaciones';
-  if (norm.includes('estatus')) return 'Estatus actual';
+  if (norm.includes('observaciones') || norm.includes('notas')) return 'Observaciones';
+  if (norm.includes('estatus') || norm.includes('estado')) return 'Estatus actual';
   if (norm.includes('escuadron')) return 'Escuadrón Asignado';
   if (norm.includes('contacto principal') || norm.includes('contacto')) return 'Contacto Principal';
   if (norm.includes('primer contacto')) return 'Fecha Primer Contacto';
-  if (norm.includes('re contacto') || norm.includes('ultimo contacto')) return 'Fecha Re-Contacto';
+  if (norm.includes('re contacto') || norm.includes('ultimo contacto') || norm.includes('recontacto')) return 'Fecha Re-Contacto';
   if (norm.includes('cita')) return 'Fecha de Cita';
   if (norm.includes('feedback llamada')) return 'Feedback Llamada';
   if (norm.includes('feedback cita') || norm.includes('feedback de la cita')) return 'Feedback de la cita';
-  if (norm.includes('ubicacion')) return 'Ubicación exacta';
-  if (norm.includes('instagram') || norm.includes('red social') || norm.includes('redes')) return 'instagram';
+  if (norm.includes('ubicacion') || norm.includes('direccion') || norm.includes('donde queda') || norm.includes('donde esta')) return 'Ubicación exacta';
+  if (norm.includes('instagram') || norm.includes('red social') || norm.includes('redes') || norm.includes('ig')) return 'instagram';
   if (norm.includes('correo') || norm.includes('email')) return 'Correo electrónico';
   if (norm.includes('contrato')) return 'URL Contrato';
+  if (norm.includes('cronograma')) return 'URL Cronograma';
+  if (norm.includes('discovery')) return 'Discovery';
   return null;
 }
 
@@ -212,6 +215,9 @@ export function formatClientDetailsResponse(clientDoc, requestedField = null) {
 
   if (clientDoc['Investigador Asignado']) {
     lines.push(`- **Investigador Asignado**: ${clientDoc['Investigador Asignado']}`);
+  }
+  if (clientDoc['Desarrollador Asignado']) {
+    lines.push(`- **Desarrollador Asignado**: ${clientDoc['Desarrollador Asignado']}`);
   }
   if (clientDoc['Halcón Asignado']) {
     lines.push(`- **Halcón Asignado**: ${clientDoc['Halcón Asignado']}`);

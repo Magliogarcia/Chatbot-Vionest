@@ -1,10 +1,11 @@
 import React, { useRef, useEffect } from 'react';
-import { Send, CornerDownLeft, Building2, X } from 'lucide-react';
+import { Send, CornerDownLeft, Building2, X, Square } from 'lucide-react';
 
 export function ChatInput({
   input,
   setInput,
   onSend,
+  onCancel,
   loading,
   currentContext,
   onClearContext
@@ -75,19 +76,27 @@ export function ChatInput({
             className="w-full bg-transparent text-sm text-[#1b275d] font-medium placeholder:text-slate-400 resize-none outline-none px-3 py-2 max-h-40 min-h-[42px] leading-relaxed"
           />
 
-          <button
-            type="submit"
-            disabled={loading || !input.trim()}
-            className="p-3 bg-[#2bace2] hover:bg-[#3fb8e8] active:bg-[#1e94c8] text-white rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 flex-shrink-0 cursor-pointer shadow-md shadow-[#2bace2]/25"
-            title="Enviar mensaje (Enter)"
-            aria-label="Enviar mensaje"
-          >
-            {loading ? (
-              <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-            ) : (
+          {loading ? (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="p-3 bg-rose-500 hover:bg-rose-600 active:bg-rose-700 text-white rounded-xl transition-all duration-150 flex-shrink-0 cursor-pointer shadow-md shadow-rose-500/25 animate-pulse"
+              title="Detener respuesta (Cancelar)"
+              aria-label="Detener respuesta"
+            >
+              <Square className="w-4 h-4 fill-current" />
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={!input.trim()}
+              className="p-3 bg-[#2bace2] hover:bg-[#3fb8e8] active:bg-[#1e94c8] text-white rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 flex-shrink-0 cursor-pointer shadow-md shadow-[#2bace2]/25"
+              title="Enviar mensaje (Enter)"
+              aria-label="Enviar mensaje"
+            >
               <Send className="w-4 h-4 stroke-[2.5]" />
-            )}
-          </button>
+            </button>
+          )}
         </form>
 
         <div className="flex items-center justify-between mt-2 px-2 text-[11px] text-slate-500">

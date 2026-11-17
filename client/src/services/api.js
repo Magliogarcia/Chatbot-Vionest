@@ -69,10 +69,11 @@ export const authApi = {
 };
 
 export const chatApi = {
-  sendMessage: (messageText, conversationId = null) =>
+  sendMessage: (messageText, conversationId = null, signal = null) =>
     request('/chat/messages', {
       method: 'POST',
       body: JSON.stringify({ messageText, conversationId }),
+      signal,
     }),
 
   getConversations: () =>

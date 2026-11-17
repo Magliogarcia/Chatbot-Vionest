@@ -151,21 +151,18 @@ export async function processChatMessage({ userId, conversationId, messageText }
       }
     }
 
-    // D. Verificación del Cliente en Contexto Activo
-    // Si ya hay un cliente fijado en la barra azul (ej: "rodamientos m & e"), y la pregunta es sobre él o coincide con su nombre
+    // D. Soporte Conversacional del Cliente en Contexto Activo
+    // Si ya hay un cliente fijado en la barra azul (ej: "Weisy car"), cualquier pregunta subsiguiente
+    // en el chat se refiere a este cliente a menos que el usuario mencione explícitamente OTRA empresa.
     if (!assistantText && updatedContext?.clientId && updatedContext?.clientName) {
-      const normInput = cleanInput.toLowerCase();
-      const normContextName = updatedContext.clientName.toLowerCase();
-      
-      // Palabras significativas del nombre en contexto
-      const contextKeywords = normContextName.split(/[\s&,-]+/).filter(w => w.length >= 3);
-      const isReferencingContext = contextKeywords.some(w => normInput.includes(w)) ||
-        normInput.includes('su ') || normInput.includes('de ellos') || normInput.includes('de el') ||
-        normInput.includes('ubicacion') || normInput.includes('telefono') || normInput.includes('contacto') ||
-        normInput.includes('feedback') || normInput.includes('que sabes') || normInput.includes('cuentame');
+      // Comprobar si el usuario nombró explícitamente OTRA empresa diferente con alta confianza
+      const preMatches = await retrieveRelevantClients(cleanInput, 3);
+      const isSwitchingToOtherClient = preMatches.length > 0 &&
+        (preMatches[0].score >= 5000 || preMatches[0].matchType === 'EXACT_NAME') &&
+        String(preMatches[0].doc._id?.$oid || preMatches[0].doc._id?.toString() || preMatches[0].doc._id) !== String(updatedContext.clientId);
 
-      if (isReferencingContext) {
-        console.log(`[RAG Context] 🎯 Usando cliente activo en contexto: "${updatedContext.clientName}"`);
+      if (!isSwitchingToOtherClient) {
+        console.log(`[RAG Context] 🎯 Usando cliente activo en contexto: "${updatedContext.clientName}" para: "${cleanInput}"`);
         const contextDoc = await getClientById(updatedContext.clientId);
         if (contextDoc) {
           assistantText = await draftResponseWithAI({
@@ -176,7 +173,8 @@ export async function processChatMessage({ userId, conversationId, messageText }
           });
 
           if (!assistantText) {
-            assistantText = formatClientDetailsResponse(contextDoc);
+            const requestedField = detIntent.requestedField || null;
+            assistantText = formatClientDetailsResponse(contextDoc, requestedField);
           }
         }
       }
@@ -308,11 +306,14 @@ export async function processChatMessage({ userId, conversationId, messageText }
   return {
     conversationId: targetConvId,
     userMessage: {
+      id: `user_${Date.now()}`,
+      sender: 'user',
       text: cleanInput,
       createdAt: new Date()
     },
     assistantMessage: {
       id: savedAssistantMsg?.id || Date.now().toString(),
+      sender: 'assistant',
       text: assistantText,
       returnedMatches,
       createdAt: savedAssistantMsg?.createdAt || new Date()

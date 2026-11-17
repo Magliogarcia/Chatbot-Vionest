@@ -35,6 +35,7 @@ export default function App() {
   const [convToDelete, setConvToDelete] = useState(null);
 
   const messagesEndRef = useRef(null);
+  const abortControllerRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -119,9 +120,24 @@ export default function App() {
     }
   }
 
+  function handleCancelMessage() {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setLoadingMessage(false);
+  }
+
   async function handleSendMessage(overrideText = null) {
     const textToSend = (overrideText || input).trim();
     if (!textToSend || loadingMessage) return;
+
+    // Si había una petición previa en curso, cancelarla limpiamente
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     setChatError(null);
     setInput('');
@@ -139,32 +155,59 @@ export default function App() {
     setLoadingMessage(true);
 
     try {
-      const res = await chatApi.sendMessage(textToSend, currentConvId);
+      const res = await chatApi.sendMessage(textToSend, currentConvId, controller.signal);
       if (res.success) {
         // Actualizar conversación actual
         setCurrentConvId(res.conversationId);
         setCurrentContext(res.currentContext);
 
-        // Reemplazar mensaje temporal y agregar respuesta del asistente
+        // Reemplazar mensaje temporal y agregar respuesta del asistente garantizando el rol de usuario
         setMessages((prev) => {
           const filtered = prev.filter((m) => m.id !== tempUserMsg.id);
-          return [...filtered, res.userMessage, res.assistantMessage];
+          const safeUserMsg = {
+            id: res.userMessage?.id || tempUserMsg.id,
+            sender: 'user',
+            text: res.userMessage?.text || textToSend,
+            timestamp: res.userMessage?.createdAt || new Date().toISOString()
+          };
+          const safeAssistantMsg = {
+            id: res.assistantMessage?.id || `asst_${Date.now()}`,
+            sender: 'assistant',
+            text: res.assistantMessage?.text || '',
+            returnedMatches: res.assistantMessage?.returnedMatches || null,
+            timestamp: res.assistantMessage?.createdAt || new Date().toISOString()
+          };
+          return [...filtered, safeUserMsg, safeAssistantMsg];
         });
 
         // Recargar lista lateral de conversaciones
         loadConversations();
       }
     } catch (err) {
-      setChatError(err.message || 'Error al procesar la consulta.');
-      // Dejar mensaje de error detallado en chat
-      const errorMsg = {
-        id: `err_${Date.now()}`,
-        sender: 'assistant',
-        text: `⚠️ **Ocurrió un problema:** ${err.message || 'No fue posible completar la consulta en la base de datos tras consultar a los agentes.'}`,
-        timestamp: new Date().toISOString()
-      };
-      setMessages((prev) => [...prev, errorMsg]);
+      if (err.name === 'AbortError' || controller.signal.aborted) {
+        // Cancelación voluntaria del usuario
+        const cancelMsg = {
+          id: `cancel_${Date.now()}`,
+          sender: 'assistant',
+          text: '⏹️ *Consulta detenida por el usuario.*',
+          timestamp: new Date().toISOString()
+        };
+        setMessages((prev) => [...prev, cancelMsg]);
+      } else {
+        setChatError(err.message || 'Error al procesar la consulta.');
+        // Dejar mensaje de error detallado en chat
+        const errorMsg = {
+          id: `err_${Date.now()}`,
+          sender: 'assistant',
+          text: `⚠️ **Ocurrió un problema:** ${err.message || 'No fue posible completar la consulta en la base de datos tras consultar a los agentes.'}`,
+          timestamp: new Date().toISOString()
+        };
+        setMessages((prev) => [...prev, errorMsg]);
+      }
     } finally {
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+      }
       setLoadingMessage(false);
     }
   }
@@ -236,7 +279,7 @@ export default function App() {
                     />
                   ))}
 
-                  {/* Loading indicator dinámico estilo Claude con rotación de frases y alerta de 40s */}
+                  {/* Loading indicator dinámico estilo Claude con rotación de frases y botón de cancelar */}
                   {loadingMessage && (
                     <ThinkingIndicator
                       lastUserQuery={lastQuery}
@@ -245,7 +288,7 @@ export default function App() {
                           handleSendMessage(lastQuery);
                         }
                       }}
-                      onCancel={() => setLoadingMessage(false)}
+                      onCancel={handleCancelMessage}
                     />
                   )}
 
@@ -260,6 +303,7 @@ export default function App() {
             input={input}
             setInput={setInput}
             onSend={() => handleSendMessage()}
+            onCancel={handleCancelMessage}
             loading={loadingMessage}
             currentContext={currentContext}
             onClearContext={() => setCurrentContext(null)}
